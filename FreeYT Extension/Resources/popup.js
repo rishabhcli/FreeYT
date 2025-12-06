@@ -63,9 +63,9 @@
         throw new Error('Required popup elements not found');
       }
 
-      // Get current state from storage
-      const result = await chrome.storage.local.get(STORAGE_KEY);
-      const enabled = result[STORAGE_KEY] ?? true;
+      // Get current state from background (falls back to storage)
+      const result = await chrome.runtime.sendMessage({ action: 'getState' });
+      const enabled = result?.enabled ?? true;
       setStatusUI(enabled);
 
       // Listen for toggle changes
@@ -73,7 +73,10 @@
         const newState = enabledToggle.checked;
 
         try {
-          await chrome.storage.local.set({ [STORAGE_KEY]: newState });
+          const response = await chrome.runtime.sendMessage({ action: 'setState', enabled: newState });
+          if (!response?.success) {
+            throw new Error('Background rejected state change');
+          }
           setStatusUI(newState);
           console.log('[FreeYT Popup] State changed to:', newState);
         } catch (error) {

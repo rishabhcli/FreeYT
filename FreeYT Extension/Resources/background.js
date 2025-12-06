@@ -25,6 +25,11 @@ chrome.runtime.onInstalled.addListener(async () => {
   }
 });
 
+// Safari can unload the service worker; re-sync rules whenever it wakes
+chrome.runtime.onStartup?.addListener(() => {
+  syncRulesToStorage().catch(err => console.error('[FreeYT] Failed to sync rules on startup:', err));
+});
+
 // Enable redirect rules
 async function enableRedirects() {
   try {
@@ -47,6 +52,18 @@ async function disableRedirects() {
   } catch (error) {
     console.error('[FreeYT] Failed to disable redirect rules:', error);
   }
+}
+
+// Ensure the enabled ruleset matches the saved toggle state
+async function syncRulesToStorage() {
+  const result = await chrome.storage.local.get(STORAGE_KEY);
+  const enabled = result[STORAGE_KEY] ?? true;
+  if (enabled) {
+    await enableRedirects();
+  } else {
+    await disableRedirects();
+  }
+  console.log('[FreeYT] Synced rules to stored state:', enabled ? 'enabled' : 'disabled');
 }
 
 // Handle messages from popup
@@ -91,5 +108,8 @@ chrome.storage.onChanged.addListener(async (changes, areaName) => {
     }
   }
 });
+
+// Best-effort sync whenever the worker spins up
+syncRulesToStorage().catch(err => console.error('[FreeYT] Initial sync failed:', err));
 
 console.log('[FreeYT] Background service worker initialized');

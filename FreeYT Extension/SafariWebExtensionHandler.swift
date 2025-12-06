@@ -13,6 +13,14 @@
 
 import Foundation
 
-/// No-op placeholder to keep the target compiling. All extension logic lives in
-/// manifest.json, rules.json, background.js, popup.html/css/js.
-@objc class SafariWebExtensionHandlerPlaceholder: NSObject {}
+/// Minimal principal class so Safari can instantiate the extension bundle.
+/// All runtime behavior lives in the web extension resources (manifest, rules,
+/// background.js, popup files), but Safari still requires a principal class
+/// that conforms to `NSExtensionRequestHandling`.
+@objc class SafariWebExtensionHandler: NSObject, NSExtensionRequestHandling {
+    func beginRequest(with context: NSExtensionContext) {
+        // We do not exchange messages with the native host, so immediately
+        // finish the request to keep Safari happy.
+        context.completeRequest(returningItems: nil, completionHandler: nil)
+    }
+}
