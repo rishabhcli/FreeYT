@@ -15,12 +15,9 @@ class AppDelegate: UIResponder, UIApplicationDelegate {
 
     func application(_ application: UIApplication, didFinishLaunchingWithOptions launchOptions: [UIApplication.LaunchOptionsKey: Any]?) -> Bool {
         
-        // This check is for Mac Catalyst to see if the extension is enabled.
-        #if targetEnvironment(macCatalyst)
+        #if os(iOS) && !targetEnvironment(macCatalyst)
         if #available(iOS 15.0, *) {
-            // Make sure this identifier matches your extension's Bundle ID
-            let extensionIdentifier = "com.freeyt.app.extension"
-            SFSafariWebExtensionManager.getStateOfSafariWebExtension(withIdentifier: extensionIdentifier) { state, error in
+            SFSafariWebExtensionManager.getStateOfSafariWebExtension(withIdentifier: ExtensionIdentifiers.safariExtensionBundleID) { state, error in
                 if let error = error {
                     print("[FreeYT] Safari Web Extension state error:", error.localizedDescription)
                     return

@@ -5,7 +5,7 @@
 	<key>CFBundleDisplayName</key>
 	<string>FreeYT Extension</string>
 	<key>CFBundleIdentifier</key>
-	<string>com.freeyt.app.extension</string>
+	<string>com.rishabh.FreeYT.Extension</string>
 	<key>CFBundleName</key>
 	<string>$(PRODUCT_NAME)</string>
 	<key>CFBundlePackageType</key>

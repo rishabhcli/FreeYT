@@ -9,6 +9,52 @@
 import SwiftUI
 import SafariServices
 
+// Shared liquid glass tokens for consistent radii and strokes
+private enum LiquidGlassTheme {
+    static let cardRadius: CGFloat = 24
+    static let controlRadius: CGFloat = 28 // Half of standard button height (56) for Capsule
+    static let glowOpacity: Double = 0.22
+    static let strokeStrong = Color.white.opacity(0.35) // Increased for better refractive edge
+    static let strokeSoft = Color.white.opacity(0.08)
+}
+
+private struct GlassModifier: ViewModifier {
+    let radius: CGFloat
+    let shadowOpacity: Double
+
+    func body(content: Content) -> some View {
+        content
+            .background(
+                RoundedRectangle(cornerRadius: radius)
+                    .fill(Color.white.opacity(0.08)) // Slightly increased base fill
+                    .background(.ultraThinMaterial) // Kept ultraThin for maximum blur
+            )
+            .overlay(
+                RoundedRectangle(cornerRadius: radius)
+                    .strokeBorder( // changed to strokeBorder to keep stroke inside bounds
+                        LinearGradient(
+                            colors: [
+                                LiquidGlassTheme.strokeStrong,
+                                LiquidGlassTheme.strokeSoft.opacity(0.5),
+                                LiquidGlassTheme.strokeSoft
+                            ],
+                            startPoint: .topLeading,
+                            endPoint: .bottomTrailing
+                        ),
+                        lineWidth: 1.5 // Slightly thicker for "glass edge" feel
+                    )
+            )
+            .clipShape(RoundedRectangle(cornerRadius: radius))
+            .shadow(color: Color.black.opacity(shadowOpacity), radius: 24, x: 0, y: 12) // Deeper, softer shadow
+    }
+}
+
+private extension View {
+    func glassCard(radius: CGFloat = LiquidGlassTheme.cardRadius, shadowOpacity: Double = LiquidGlassTheme.glowOpacity) -> some View {
+        modifier(GlassModifier(radius: radius, shadowOpacity: shadowOpacity))
+    }
+}
+
 /// Main view showcasing iOS 26 liquid glass design for FreeYT
 struct LiquidGlassView: View {
     @State private var isExtensionEnabled = false
@@ -19,9 +65,9 @@ struct LiquidGlassView: View {
             // Dynamic gradient background
             LinearGradient(
                 colors: [
-                    Color(red: 0.1, green: 0.1, blue: 0.2),
-                    Color(red: 0.2, green: 0.05, blue: 0.15),
-                    Color(red: 0.15, green: 0.1, blue: 0.25)
+                    Color(red: 0.08, green: 0.08, blue: 0.18),
+                    Color(red: 0.18, green: 0.07, blue: 0.22),
+                    Color(red: 0.14, green: 0.1, blue: 0.26)
                 ],
                 startPoint: .topLeading,
                 endPoint: .bottomTrailing
@@ -61,10 +107,9 @@ struct LiquidGlassView: View {
     }
 
     private func checkExtensionStatus() {
-        #if targetEnvironment(macCatalyst)
+        #if os(iOS) && !targetEnvironment(macCatalyst)
         if #available(iOS 15.0, *) {
-            let extensionIdentifier = "com.freeyt.app.extension"
-            SFSafariWebExtensionManager.getStateOfSafariWebExtension(withIdentifier: extensionIdentifier) { state, error in
+            SFSafariWebExtensionManager.getStateOfSafariWebExtension(withIdentifier: ExtensionIdentifiers.safariExtensionBundleID) { state, error in
                 DispatchQueue.main.async {
                     checkingState = false
                     if let state = state {
@@ -173,25 +218,7 @@ struct StatusCard: View {
             Spacer()
         }
         .padding(20)
-        .background(
-            RoundedRectangle(cornerRadius: 20)
-                .fill(Color.white.opacity(0.08))
-                .overlay(
-                    RoundedRectangle(cornerRadius: 20)
-                        .stroke(
-                            LinearGradient(
-                                colors: [
-                                    Color.white.opacity(0.2),
-                                    Color.white.opacity(0.05)
-                                ],
-                                startPoint: .topLeading,
-                                endPoint: .bottomTrailing
-                            ),
-                            lineWidth: 1
-                        )
-                )
-                .shadow(color: Color.black.opacity(0.3), radius: 15, x: 0, y: 8)
-        )
+        .glassCard()
     }
 }
 
@@ -216,15 +243,7 @@ struct DescriptionCard: View {
         }
         .frame(maxWidth: .infinity, alignment: .leading)
         .padding(20)
-        .background(
-            RoundedRectangle(cornerRadius: 18)
-                .fill(Color.white.opacity(0.06))
-                .overlay(
-                    RoundedRectangle(cornerRadius: 18)
-                        .stroke(Color.white.opacity(0.1), lineWidth: 1)
-                )
-                .shadow(color: Color.black.opacity(0.2), radius: 10, x: 0, y: 5)
-        )
+        .glassCard()
     }
 }
 
@@ -251,15 +270,7 @@ struct InstructionsCard: View {
         }
         .frame(maxWidth: .infinity, alignment: .leading)
         .padding(20)
-        .background(
-            RoundedRectangle(cornerRadius: 18)
-                .fill(Color.white.opacity(0.06))
-                .overlay(
-                    RoundedRectangle(cornerRadius: 18)
-                        .stroke(Color.white.opacity(0.1), lineWidth: 1)
-                )
-                .shadow(color: Color.black.opacity(0.2), radius: 10, x: 0, y: 5)
-        )
+        .glassCard()
     }
 }
 
@@ -302,33 +313,41 @@ struct ActionButton: View {
             }
             .foregroundColor(.white)
             .frame(maxWidth: .infinity)
-            .frame(height: 54)
+            .frame(height: 56)
+            .clipShape(Capsule()) // Enforce Capsule shape
             .background(
-                ZStack {
-                    // Gradient background
-                    LinearGradient(
-                        colors: isEnabled ? [
-                            Color.green.opacity(0.6),
-                            Color.green.opacity(0.4)
-                        ] : [
-                            Color.red.opacity(0.7),
-                            Color.red.opacity(0.5)
-                        ],
-                        startPoint: .topLeading,
-                        endPoint: .bottomTrailing
-                    )
-
-                    // Glass overlay
-                    RoundedRectangle(cornerRadius: 16)
-                        .fill(Color.white.opacity(isPressed ? 0.1 : 0.15))
-                        .overlay(
-                            RoundedRectangle(cornerRadius: 16)
-                                .stroke(Color.white.opacity(0.3), lineWidth: 1)
+                Capsule()
+                    .fill(.ultraThinMaterial)
+                    .overlay(
+                        LinearGradient(
+                            colors: isEnabled ? [
+                                Color.green.opacity(0.40),
+                                Color.green.opacity(0.25)
+                            ] : [
+                                Color.red.opacity(0.45),
+                                Color.red.opacity(0.25)
+                            ],
+                            startPoint: .topLeading,
+                            endPoint: .bottomTrailing
                         )
-                }
+                        .blendMode(.overlay) // Changed to overlay for better color integration
+                    )
+                    .overlay(
+                        Capsule()
+                            .strokeBorder(
+                                LinearGradient(
+                                    colors: [
+                                        LiquidGlassTheme.strokeStrong,
+                                        LiquidGlassTheme.strokeSoft
+                                    ],
+                                    startPoint: .topLeading,
+                                    endPoint: .bottomTrailing
+                                ),
+                                lineWidth: 1.5
+                            )
+                    )
             )
-            .clipShape(RoundedRectangle(cornerRadius: 16))
-            .shadow(color: (isEnabled ? Color.green : Color.red).opacity(0.3), radius: 15, x: 0, y: 8)
+            .shadow(color: (isEnabled ? Color.green : Color.red).opacity(0.35), radius: 20, x: 0, y: 10)
             .scaleEffect(isPressed ? 0.96 : 1.0)
         }
         .disabled(isEnabled)
@@ -341,9 +360,25 @@ struct ActionButton: View {
     }
 
     private func openSafariSettings() {
-        if let url = URL(string: "App-prefs:SAFARI") {
-            UIApplication.shared.open(url)
+        #if targetEnvironment(macCatalyst)
+        // Catalyst: open Safari so the user can enable the extension from Safari Settings → Extensions
+        if let safariURL = URL(string: "safari:") {
+            UIApplication.shared.open(safariURL, options: [:], completionHandler: nil)
         }
+        #else
+        // iOS: try deep link to Safari extensions; fall back to Safari root settings, then app settings
+        let candidates = [
+            "App-Prefs:root=SAFARI&path=WEB_EXTENSIONS",
+            "App-Prefs:root=SAFARI",
+            UIApplication.openSettingsURLString
+        ]
+        for candidate in candidates {
+            if let url = URL(string: candidate), UIApplication.shared.canOpenURL(url) {
+                UIApplication.shared.open(url, options: [:], completionHandler: nil)
+                break
+            }
+        }
+        #endif
     }
 }
 
