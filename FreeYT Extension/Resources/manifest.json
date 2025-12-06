@@ -11,7 +11,8 @@
   "host_permissions": [
     "*://*.youtube.com/*",
     "*://youtu.be/*",
-    "*://*.yout-ube.com/*"
+    "*://*.yout-ube.com/*",
+    "*://*.youtube-nocookie.com/*"
   ],
   "icons": {
     "48": "images/icon-48.png",
@@ -48,7 +49,9 @@
     {
       "matches": [
         "*://*.youtube.com/*",
-        "*://youtu.be/*"
+        "*://youtu.be/*",
+        "*://*.yout-ube.com/*",
+        "*://*.youtube-nocookie.com/*"
       ],
       "js": ["content.js"],
       "run_at": "document_start"

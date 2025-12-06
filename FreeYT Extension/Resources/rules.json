@@ -5,7 +5,7 @@
     "action": {
       "type": "redirect",
       "redirect": {
-        "regexSubstitution": "https://www.yout-ube.com/watch?\\1"
+        "regexSubstitution": "https://www.yout-ube.com/watch?\\1&autoplay=1"
       }
     },
     "condition": {
@@ -19,7 +19,7 @@
     "action": {
       "type": "redirect",
       "redirect": {
-        "regexSubstitution": "https://www.yout-ube.com/shorts/\\1"
+        "regexSubstitution": "https://www.yout-ube.com/shorts/\\1?autoplay=1"
       }
     },
     "condition": {
@@ -33,7 +33,7 @@
     "action": {
       "type": "redirect",
       "redirect": {
-        "regexSubstitution": "https://www.yout-ube.com/embed/\\1"
+        "regexSubstitution": "https://www.yout-ube.com/embed/\\1?autoplay=1"
       }
     },
     "condition": {
@@ -47,7 +47,7 @@
     "action": {
       "type": "redirect",
       "redirect": {
-        "regexSubstitution": "https://www.yout-ube.com/live/\\1"
+        "regexSubstitution": "https://www.yout-ube.com/live/\\1?autoplay=1"
       }
     },
     "condition": {
@@ -61,7 +61,7 @@
     "action": {
       "type": "redirect",
       "redirect": {
-        "regexSubstitution": "https://m.yout-ube.com/watch?\\1"
+        "regexSubstitution": "https://m.yout-ube.com/watch?\\1&autoplay=1"
       }
     },
     "condition": {
@@ -75,7 +75,7 @@
     "action": {
       "type": "redirect",
       "redirect": {
-        "regexSubstitution": "https://www.yout-ube.com/watch?v=\\1"
+        "regexSubstitution": "https://www.yout-ube.com/watch?v=\\1&autoplay=1"
       }
     },
     "condition": {
