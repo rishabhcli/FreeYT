@@ -3,26 +3,32 @@
 
   const enabledToggle = document.getElementById('enabledToggle');
   const statusText = document.getElementById('statusText');
-
-  const STORAGE_KEY = 'enabled';
+  const statusPill = document.getElementById('statusPill');
+  const statusLED = document.getElementById('statusLED');
+  const modeChip = document.getElementById('modeChip');
+  const refreshStateButton = document.getElementById('refreshState');
 
   // Update UI based on enabled state with smooth transitions
   function setStatusUI(enabled) {
     enabledToggle.checked = enabled;
     enabledToggle.setAttribute('aria-checked', enabled ? 'true' : 'false');
 
-    // Animate text change
-    statusText.style.transition = 'all 0.3s cubic-bezier(0.4, 0, 0.2, 1)';
-    statusText.style.opacity = '0';
-    statusText.style.transform = 'translateY(-4px)';
+    statusText.textContent = enabled ? 'Enabled' : 'Disabled';
+    statusText.classList.toggle('state-off', !enabled);
 
-    setTimeout(() => {
-      statusText.textContent = enabled ? 'Enabled' : 'Disabled';
-      statusText.style.color = enabled ? 'var(--success)' : 'var(--fg-muted)';
-      statusText.style.fontWeight = enabled ? '600' : '500';
-      statusText.style.opacity = '1';
-      statusText.style.transform = 'translateY(0)';
-    }, 150);
+    if (statusPill) {
+      statusPill.textContent = enabled ? 'Shield active' : 'Shield paused';
+      statusPill.classList.toggle('pill-off', !enabled);
+    }
+
+    if (statusLED) {
+      statusLED.classList.toggle('off', !enabled);
+    }
+
+    if (modeChip) {
+      modeChip.textContent = enabled ? 'Auto-redirect' : 'Awaiting Safari';
+      modeChip.classList.toggle('chip-off', !enabled);
+    }
   }
 
   // Show error message to user
@@ -63,6 +69,28 @@
         throw new Error('Required popup elements not found');
       }
 
+      // Safari-only guard: if not Safari, disable UI and exit
+      const ua = navigator.userAgent || '';
+      const isSafari = ua.includes('Safari') && !ua.match(/Chrome|CriOS|Edg|OPR|Brave|Firefox/i);
+      if (!isSafari) {
+        enabledToggle.disabled = true;
+        statusText.textContent = 'Safari only';
+        statusText.classList.add('state-off');
+        if (statusPill) {
+          statusPill.textContent = 'Unsupported browser';
+          statusPill.classList.add('pill-off');
+        }
+        if (modeChip) {
+          modeChip.textContent = 'Safari required';
+          modeChip.classList.add('chip-off');
+        }
+        if (statusLED) {
+          statusLED.classList.add('off');
+        }
+        showError('FreeYT is a Safari-only extension. Install and use it in Safari.');
+        return;
+      }
+
       // Get current state from background (falls back to storage)
       const result = await chrome.runtime.sendMessage({ action: 'getState' });
       const enabled = result?.enabled ?? true;
@@ -86,6 +114,19 @@
           setStatusUI(!newState);
         }
       });
+
+      if (refreshStateButton) {
+        refreshStateButton.addEventListener('click', async () => {
+          try {
+            const result = await chrome.runtime.sendMessage({ action: 'getState' });
+            const enabled = result?.enabled ?? true;
+            setStatusUI(enabled);
+          } catch (error) {
+            console.error('[FreeYT Popup] Refresh failed:', error);
+            showError('Could not refresh state from Safari.');
+          }
+        });
+      }
 
       console.log('[FreeYT Popup] Initialized, current state:', enabled);
     } catch (error) {

@@ -1,41 +1,107 @@
 <!doctype html>
 <html lang="en">
-<head>
-  <meta charset="utf-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1" />
-  <title>FreeYT - Privacy YouTube</title>
-  <link rel="stylesheet" href="popup.css" />
-</head>
-<body>
-  <header role="banner">
-    <img src="images/icon-48.png" alt="FreeYT icon" width="24" height="24" />
-    <h1>FreeYT</h1>
-  </header>
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>FreeYT - Liquid Glass</title>
+    <link rel="stylesheet" href="popup.css" />
+  </head>
+  <body class="shell">
+    <div class="ambient ambient-a" aria-hidden="true"></div>
+    <div class="ambient ambient-b" aria-hidden="true"></div>
+    <div class="ambient ambient-c" aria-hidden="true"></div>
 
-  <main role="main">
-    <section class="status" role="region" aria-label="Extension status">
-      <label class="switch">
-        <input
-          type="checkbox"
-          id="enabledToggle"
-          role="switch"
-          aria-checked="true"
-          aria-label="Toggle FreeYT extension to enable or disable YouTube redirect protection" />
-        <span class="slider" aria-hidden="true"></span>
-      </label>
-      <span id="statusText" role="status" aria-live="polite">Enabled</span>
-    </section>
+    <div class="panel">
+      <header class="hero" role="banner">
+        <div class="logo-stack" aria-hidden="true">
+          <span class="logo-ring"></span>
+          <img src="images/icon-48.png" alt="FreeYT icon" width="36" height="36" />
+        </div>
+        <div class="hero-copy">
+          <p class="eyebrow">Safari taskbar extension</p>
+          <h1>FreeYT Liquid Glass</h1>
+          <p class="lede">Redirects YouTube links to privacy-safe no-cookie embeds.</p>
+        </div>
+        <span id="statusPill" class="pill" role="status" aria-live="polite">Checking…</span>
+      </header>
 
-    <section class="info" role="region" aria-label="Extension information">
-      <p>Automatically redirects YouTube to no-cookie version.</p>
-      <p class="details">Redirects YouTube URLs to youtube-nocookie.com embed format for privacy protection (no tracking cookies).</p>
-    </section>
-  </main>
+      <main role="main" class="grid">
+        <section class="card glass status-card" role="region" aria-label="Extension status">
+          <div class="status-top">
+            <div class="status-led" id="statusLED" aria-hidden="true">
+              <span class="pulse"></span>
+            </div>
+            <div class="status-copy glass-lift">
+              <p class="label">Protection status</p>
+              <div class="status-row">
+                <h2 id="statusText" aria-live="polite">Enabled</h2>
+                <span class="chip" id="modeChip">Auto-redirect</span>
+              </div>
+              <p class="muted">Safari requests rerouted through youtube-nocookie.com.</p>
+            </div>
+            <label class="switch" aria-label="Toggle FreeYT extension to enable or disable YouTube redirect protection">
+              <input
+                type="checkbox"
+                id="enabledToggle"
+                role="switch"
+                aria-checked="true" />
+              <span class="slider" aria-hidden="true">
+                <span class="spark"></span>
+              </span>
+            </label>
+          </div>
+          <div class="status-footer">
+            <div class="metric">
+              <p class="label">Route</p>
+              <p class="value">no-cookie embed</p>
+            </div>
+            <div class="metric">
+              <p class="label">Surface</p>
+              <p class="value">Safari taskbar</p>
+            </div>
+          </div>
+        </section>
 
-  <footer role="contentinfo">
-    <small>No tracking. No cookies. Your privacy protected.</small>
-  </footer>
+        <section class="card glass info-card" role="region" aria-label="Privacy benefits">
+          <div class="card-head">
+            <p class="eyebrow">Liquid glass stack</p>
+            <p class="pill ghost">No trackers</p>
+          </div>
+          <p class="lede">A fluid glass layer cushions your Safari taskbar popup with blurred depth, refractions, and soft specular strokes for Apple’s new Liquid Glass language.</p>
+          <div class="chip-row">
+            <span class="chip ghost">Auto redirects</span>
+            <span class="chip ghost">No cookies</span>
+            <span class="chip ghost">Inline blur</span>
+          </div>
+        </section>
 
-  <script src="popup.js"></script>
-</body>
+        <section class="card glass steps-card" role="region" aria-label="Enable steps in Safari">
+          <div class="card-head">
+            <p class="eyebrow">Enable in Safari</p>
+            <p class="pill ghost">2 min setup</p>
+          </div>
+          <ol class="steps">
+            <li><span class="step-index">1</span>Open Safari.</li>
+            <li><span class="step-index">2</span>Safari Settings → Extensions.</li>
+            <li><span class="step-index">3</span>Enable “FreeYT”.</li>
+            <li><span class="step-index">4</span>Allow page access when prompted.</li>
+          </ol>
+        </section>
+
+        <section class="card glass support-card" role="contentinfo" aria-label="Support and tips">
+          <div class="card-head">
+            <p class="eyebrow">Stay in control</p>
+            <p class="pill ghost">Local only</p>
+          </div>
+          <p class="lede">Switch stays synced with the background script. You can refresh the state at any time to mirror Safari’s current permissions.</p>
+          <div class="actions">
+            <button type="button" id="refreshState" class="btn primary">Refresh state</button>
+            <button type="button" class="btn ghost" disabled aria-disabled="true">Safari handles updates</button>
+          </div>
+        </section>
+      </main>
+    </div>
+
+    <script src="popup.js"></script>
+  </body>
 </html>

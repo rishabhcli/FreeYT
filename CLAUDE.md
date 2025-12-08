@@ -9,7 +9,7 @@ FreeYT is a **production-ready** Safari Web Extension for iOS/macOS that automat
 ### Components
 
 1. **FreeYT App** - Native iOS/Mac Catalyst host app with polished UI
-2. **FreeYT Extension** - Safari Web Extension (Manifest V3) with declarativeNetRequest-based redirects
+2. **FreeYT Extension** - Safari Web Extension (Manifest V3) with declarativeNetRequest-based redirects (Safari-only; popup blocks non-Safari UA)
 3. **Features**:
    - Automatic YouTube → youtube-nocookie.com redirection
    - Toggle extension on/off via Safari toolbar popup
@@ -133,11 +133,11 @@ FreeYT/
 - **manifest.json** - Extension configuration with declarativeNetRequest permissions (Manifest V3)
 - **rules.json** - 6 declarativeNetRequest rules for redirecting YouTube URLs to youtube-nocookie.com
 - **background.js** - Service worker that manages rule enabling/disabling via `updateEnabledRulesets()`
-- **popup.html/css/js** - Safari toolbar popup UI with toggle switch, ARIA accessibility, and error handling
+- **popup.html/css/js** - Safari toolbar popup UI with toggle switch, ARIA accessibility, error handling, and Safari-only guard (non-Safari UAs are blocked)
 
 ### Host App
 
-- **LiquidGlassView.swift** - Modern SwiftUI UI with liquid glass design showing extension status
+- **LiquidGlassView.swift** - Modern SwiftUI UI with Liquid Glass design showing extension status; includes tint picker, animated background/particles, haptics, morph-ready GlassEffectContainer clusters, and Safari-only messaging alignment
 - **LiquidGlassHostingController.swift** - UIHostingController wrapper for SwiftUI view
 - **AppDelegate.swift** - Checks extension state on Mac Catalyst
 - **LaunchScreen.storyboard** - Polished splash screen with icon, title, and subtitle

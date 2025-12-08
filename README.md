@@ -9,15 +9,16 @@ FreeYT intercepts YouTube links and redirects them to embed-only versions that d
 ## Features
 
 - Network-level URL redirection (no DOM manipulation)
+- Safari-only extension (explicit guard for non-Safari user agents)
 - Supports multiple YouTube URL formats:
   - youtube.com/watch?v=xxx
   - youtu.be/xxx
   - youtube.com/shorts/xxx
   - m.youtube.com (mobile)
-- Toggle extension on/off via Safari toolbar popup
+- Toggle extension on/off via Safari toolbar popup with Liquid Glass styling
 - Persistent state across browser sessions
 - Dark/light mode support in popup UI
-- Native iOS/Mac host app with modern SwiftUI interface (liquid glass design)
+- Native iOS/Mac host app with modern SwiftUI interface (Liquid Glass design, morph-ready containers, animated background/particles, haptics, tint picker)
 - No data collection, no tracking, no analytics
 
 ## Technical Architecture
@@ -131,17 +132,18 @@ Service worker that:
 ### popup.html/css/js
 Safari toolbar popup interface that:
 - Displays current extension state
-- Provides toggle control
+- Provides toggle control (Safari-only guard; blocks non-Safari)
 - Includes test buttons for verification
 - Supports system dark/light mode
 
 ### LiquidGlassView.swift
 Modern SwiftUI app UI that:
-- Displays app branding with liquid glass design
-- Shows extension status and instructions
+- Displays app branding with Liquid Glass design, animated background/particles
+- Shows extension status and instructions in a GlassEffectContainer cluster
+- Includes morph-ready Liquid Glass toggle (iOS 18+/26), tint picker, haptics
 - Supports dark/light mode automatically
-- Provides beautiful, polished user experience
-- Auto-detects extension status on Mac Catalyst
+- Provides polished onboarding aligned with the Safari popup
+- Auto-detects extension status on Mac Catalyst and offers refresh/diagnostics
 
 ## Bundle Identifiers
 
