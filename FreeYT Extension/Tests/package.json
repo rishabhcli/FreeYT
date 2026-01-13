@@ -1,0 +1,14 @@
+{
+  "name": "freeyt-extension-tests",
+  "version": "1.0.0",
+  "description": "Unit tests for FreeYT Safari Web Extension",
+  "type": "module",
+  "scripts": {
+    "test": "node --test",
+    "test:background": "node --test background.test.js",
+    "test:popup": "node --test popup.test.js",
+    "test:content": "node --test content.test.js",
+    "test:rules": "node --test rules.test.js"
+  },
+  "devDependencies": {}
+}
