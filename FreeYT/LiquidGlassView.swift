@@ -45,40 +45,51 @@ enum TintPalette: String, CaseIterable, Codable, Equatable {
 
 private struct GlassCardModifier: ViewModifier {
     let radius: CGFloat
+    @Environment(\.accessibilityReduceTransparency) private var reduceTransparency
 
     func body(content: Content) -> some View {
-        content
-            .padding(18)
-            .frame(maxWidth: .infinity, alignment: .leading)
-            .background(
-                RoundedRectangle(cornerRadius: radius, style: .continuous)
-                    .fill(
-                        LinearGradient(
-                            colors: [
-                                Color.white.opacity(0.10),
-                                Color.white.opacity(0.04)
-                            ],
-                            startPoint: .topLeading,
-                            endPoint: .bottomTrailing
-                        )
-                    )
-                    .background(.ultraThinMaterial)
-                    .overlay(
-                        RoundedRectangle(cornerRadius: radius, style: .continuous)
-                            .strokeBorder(
-                                LinearGradient(
-                                    colors: [
-                                        LiquidGlassTheme.strokeStrong,
-                                        LiquidGlassTheme.strokeSoft
-                                    ],
-                                    startPoint: .topLeading,
-                                    endPoint: .bottomTrailing
-                                ),
-                                lineWidth: 1.2
+        if #available(iOS 26.0, macOS 26.0, *) {
+            content
+                .padding(18)
+                .frame(maxWidth: .infinity, alignment: .leading)
+                .glassEffect(
+                    reduceTransparency ? .identity : .regular,
+                    in: RoundedRectangle(cornerRadius: radius, style: .continuous)
+                )
+        } else {
+            content
+                .padding(18)
+                .frame(maxWidth: .infinity, alignment: .leading)
+                .background(
+                    RoundedRectangle(cornerRadius: radius, style: .continuous)
+                        .fill(
+                            LinearGradient(
+                                colors: [
+                                    Color.white.opacity(0.10),
+                                    Color.white.opacity(0.04)
+                                ],
+                                startPoint: .topLeading,
+                                endPoint: .bottomTrailing
                             )
-                    )
-            )
-            .shadow(color: Color.black.opacity(0.28), radius: 22, x: 0, y: 12)
+                        )
+                        .background(.ultraThinMaterial)
+                        .overlay(
+                            RoundedRectangle(cornerRadius: radius, style: .continuous)
+                                .strokeBorder(
+                                    LinearGradient(
+                                        colors: [
+                                            LiquidGlassTheme.strokeStrong,
+                                            LiquidGlassTheme.strokeSoft
+                                        ],
+                                        startPoint: .topLeading,
+                                        endPoint: .bottomTrailing
+                                    ),
+                                    lineWidth: 1.2
+                                )
+                        )
+                )
+                .shadow(color: Color.black.opacity(0.28), radius: 22, x: 0, y: 12)
+        }
     }
 }
 
@@ -390,30 +401,48 @@ private struct Pill: View {
     let icon: String
 
     var body: some View {
-        HStack(spacing: 6) {
-            Image(systemName: icon)
-                .font(.system(size: 12, weight: .bold))
-            Text(text)
-                .font(.system(size: 12, weight: .semibold))
-        }
-        .padding(.horizontal, 10)
-        .padding(.vertical, 6)
-        .background(
-            LinearGradient(
-                colors: [
-                    Color.white.opacity(0.08),
-                    Color.white.opacity(0.03)
-                ],
-                startPoint: .topLeading,
-                endPoint: .bottomTrailing
+        pillContent
+    }
+
+    @ViewBuilder
+    private var pillContent: some View {
+        if #available(iOS 26.0, macOS 26.0, *) {
+            HStack(spacing: 6) {
+                Image(systemName: icon)
+                    .font(.system(size: 12, weight: .bold))
+                Text(text)
+                    .font(.system(size: 12, weight: .semibold))
+            }
+            .padding(.horizontal, 10)
+            .padding(.vertical, 6)
+            .foregroundColor(.white)
+            .glassEffect(.regular, in: .capsule)
+        } else {
+            HStack(spacing: 6) {
+                Image(systemName: icon)
+                    .font(.system(size: 12, weight: .bold))
+                Text(text)
+                    .font(.system(size: 12, weight: .semibold))
+            }
+            .padding(.horizontal, 10)
+            .padding(.vertical, 6)
+            .background(
+                LinearGradient(
+                    colors: [
+                        Color.white.opacity(0.08),
+                        Color.white.opacity(0.03)
+                    ],
+                    startPoint: .topLeading,
+                    endPoint: .bottomTrailing
+                )
             )
-        )
-        .overlay(
-            RoundedRectangle(cornerRadius: 999, style: .continuous)
-                .strokeBorder(Color.white.opacity(0.16), lineWidth: 1)
-        )
-        .clipShape(Capsule())
-        .foregroundColor(.white)
+            .overlay(
+                RoundedRectangle(cornerRadius: 999, style: .continuous)
+                    .strokeBorder(Color.white.opacity(0.16), lineWidth: 1)
+            )
+            .clipShape(Capsule())
+            .foregroundColor(.white)
+        }
     }
 }
 
@@ -421,6 +450,7 @@ private struct Pill: View {
 private struct LiquidToggle: View {
     let binding: Binding<Bool>
     let glassSpace: Namespace.ID
+    @Environment(\.accessibilityReduceTransparency) private var reduceTransparency
 
     var body: some View {
         toggleBody
@@ -428,7 +458,7 @@ private struct LiquidToggle: View {
 
     @ViewBuilder
     private var toggleBody: some View {
-        if #available(iOS 26.0, *) {
+        if #available(iOS 26.0, macOS 26.0, *) {
             Toggle(isOn: binding) {
                 Text(binding.wrappedValue ? "On" : "Off")
                     .font(.system(size: 12, weight: .semibold))
@@ -436,9 +466,11 @@ private struct LiquidToggle: View {
             }
             .toggleStyle(.switch)
             .tint(LiquidGlassTheme.success)
-            .glassEffect()
+            .glassEffect(
+                reduceTransparency ? .identity : .regular.interactive(),
+                in: .capsule
+            )
             .glassEffectID("liquid-toggle", in: glassSpace)
-            .glassEffectUnion(id: "status-cluster", namespace: glassSpace)
             .accessibilityLabel("FreeYT Shield toggle")
             #if os(iOS)
             .onChange(of: binding.wrappedValue) { _ in Haptics.light() }
@@ -748,45 +780,70 @@ private struct ActionButton: View {
     let tint: TintPalette
     let openSettings: () -> Void
     @State private var isPressed = false
+    @Environment(\.accessibilityReduceTransparency) private var reduceTransparency
 
     var body: some View {
-        Button(action: openSettings) {
-            HStack(spacing: 10) {
-                Image(systemName: isEnabled ? "checkmark.circle.fill" : "safari")
-                    .font(.system(size: 18, weight: .semibold))
-                Text(isEnabled ? "Extension active" : "Open Safari Settings")
-                    .font(.system(size: 17, weight: .semibold))
+        buttonContent
+    }
+
+    @ViewBuilder
+    private var buttonContent: some View {
+        if #available(iOS 26.0, macOS 26.0, *) {
+            Button(action: openSettings) {
+                HStack(spacing: 10) {
+                    Image(systemName: isEnabled ? "checkmark.circle.fill" : "safari")
+                        .font(.system(size: 18, weight: .semibold))
+                    Text(isEnabled ? "Extension active" : "Open Safari Settings")
+                        .font(.system(size: 17, weight: .semibold))
+                }
+                .foregroundColor(.white)
+                .frame(maxWidth: .infinity)
+                .frame(height: 58)
+                .glassEffect(
+                    reduceTransparency ? .identity : .regular.interactive().tint(tint.primary),
+                    in: .capsule
+                )
             }
-            .foregroundColor(.white)
-            .frame(maxWidth: .infinity)
-            .frame(height: 58)
-            .background(
-                Capsule(style: .continuous)
-                    .fill(
-                        LinearGradient(
-                            colors: [
-                                tint.primary.opacity(isEnabled ? 0.45 : 0.65),
-                                tint.secondary.opacity(0.55)
-                            ],
-                            startPoint: .topLeading,
-                            endPoint: .bottomTrailing
+            .disabled(isEnabled)
+        } else {
+            Button(action: openSettings) {
+                HStack(spacing: 10) {
+                    Image(systemName: isEnabled ? "checkmark.circle.fill" : "safari")
+                        .font(.system(size: 18, weight: .semibold))
+                    Text(isEnabled ? "Extension active" : "Open Safari Settings")
+                        .font(.system(size: 17, weight: .semibold))
+                }
+                .foregroundColor(.white)
+                .frame(maxWidth: .infinity)
+                .frame(height: 58)
+                .background(
+                    Capsule(style: .continuous)
+                        .fill(
+                            LinearGradient(
+                                colors: [
+                                    tint.primary.opacity(isEnabled ? 0.45 : 0.65),
+                                    tint.secondary.opacity(0.55)
+                                ],
+                                startPoint: .topLeading,
+                                endPoint: .bottomTrailing
+                            )
                         )
-                    )
-                    .overlay(
-                        Capsule(style: .continuous)
-                            .strokeBorder(Color.white.opacity(0.25), lineWidth: 1.2)
-                    )
-                    .shadow(color: tint.secondary.opacity(0.35), radius: 18, x: 0, y: 10)
+                        .overlay(
+                            Capsule(style: .continuous)
+                                .strokeBorder(Color.white.opacity(0.25), lineWidth: 1.2)
+                        )
+                        .shadow(color: tint.secondary.opacity(0.35), radius: 18, x: 0, y: 10)
+                )
+                .scaleEffect(isPressed ? 0.97 : 1)
+                .animation(.spring(response: 0.28, dampingFraction: 0.7), value: isPressed)
+            }
+            .disabled(isEnabled)
+            .simultaneousGesture(
+                DragGesture(minimumDistance: 0)
+                    .onChanged { _ in isPressed = true }
+                    .onEnded { _ in isPressed = false; Haptics.light() }
             )
-            .scaleEffect(isPressed ? 0.97 : 1)
-            .animation(.spring(response: 0.28, dampingFraction: 0.7), value: isPressed)
         }
-        .disabled(isEnabled)
-        .simultaneousGesture(
-            DragGesture(minimumDistance: 0)
-                .onChanged { _ in isPressed = true }
-                .onEnded { _ in isPressed = false; Haptics.light() }
-        )
     }
 }
 
@@ -795,11 +852,10 @@ private struct ActionButton: View {
 /// Wraps content in a GlassEffectContainer when available to enable Liquid Glass unions/morphs
 @MainActor @ViewBuilder
 private func GlassCluster<Content: View>(glassSpace: Namespace.ID, @ViewBuilder _ content: () -> Content) -> some View {
-    if #available(iOS 26.0, *) {
+    if #available(iOS 26.0, macOS 26.0, *) {
         GlassEffectContainer(spacing: 12) {
             content()
         }
-        .glassEffectUnion(id: "status-cluster", namespace: glassSpace)
     } else {
         content()
     }
@@ -809,7 +865,7 @@ private func GlassCluster<Content: View>(glassSpace: Namespace.ID, @ViewBuilder 
 private extension View {
     @ViewBuilder
     func glassID<H: Hashable & Sendable>(_ id: H, in namespace: Namespace.ID) -> some View {
-        if #available(iOS 26.0, *) {
+        if #available(iOS 26.0, macOS 26.0, *) {
             self.glassEffectID(id, in: namespace)
         } else {
             self
