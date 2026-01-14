@@ -7,7 +7,7 @@
 	objects = {
 
 /* Begin PBXBuildFile section */
-		490E24422EE785DD0083C8A1 /* FreeYT - Mac.appex in Embed Foundation Extensions */ = {isa = PBXBuildFile; fileRef = 490E242A2EE785DD0083C8A1 /* FreeYT - Mac.appex */; settings = {ATTRIBUTES = (RemoveHeadersOnCopy, ); }; };
+		490E24422EE785DD0083C8A1 /* FreeYT - Mac.appex in Embed Foundation Extensions */ = {isa = PBXBuildFile; fileRef = 490E242A2EE785DD0083C8A1 /* FreeYT - Mac.appex */; platformFilter = maccatalyst; settings = {ATTRIBUTES = (RemoveHeadersOnCopy, ); }; };
 		494052A82EA56865008381B4 /* FreeYT Extension.appex in Embed Foundation Extensions */ = {isa = PBXBuildFile; fileRef = 494052A72EA56865008381B4 /* FreeYT Extension.appex */; settings = {ATTRIBUTES = (RemoveHeadersOnCopy, ); }; };
 		49A1F0012EFACE1000000001 /* SafariExtensionHandler.swift in Sources */ = {isa = PBXBuildFile; fileRef = 49A1F0012EFACE0000000001 /* SafariExtensionHandler.swift */; };
 		49A1F0012EFACE1000000002 /* SafariExtensionViewController.swift in Sources */ = {isa = PBXBuildFile; fileRef = 49A1F0012EFACE0000000002 /* SafariExtensionViewController.swift */; };

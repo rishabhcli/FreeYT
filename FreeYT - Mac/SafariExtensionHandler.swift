@@ -12,9 +12,12 @@ final class SafariExtensionHandler: SFSafariExtensionHandler {
 
     override func toolbarItemClicked(in window: SFSafariWindow) {
         window.getToolbarItem { item in
-            item?.popover = SafariExtensionViewController.shared
             item?.showPopover()
         }
+    }
+
+    override func popoverViewController() -> SFSafariExtensionViewController {
+        return SafariExtensionViewController.shared
     }
 
     override func validateToolbarItem(in window: SFSafariWindow, validationHandler: @escaping ((Bool, String) -> Void)) {

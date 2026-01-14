@@ -2,7 +2,7 @@
 //  NativePopoverView.swift
 //  FreeYT - Mac
 //
-//  Liquid Glass SwiftUI popover for macOS Safari App Extension.
+//  SwiftUI popover for macOS Safari App Extension.
 //
 
 import SwiftUI
@@ -13,18 +13,14 @@ struct NativePopoverView: View {
     let statusText: () -> String
     let onToggle: (Bool) -> Void
     let onOpenSettings: () -> Void
-    @Namespace private var glassSpace
 
     var body: some View {
-        GlassEffectContainer(spacing: 14) {
-            VStack(spacing: 14) {
-                header
-                statusCard
-                actionButtons
-            }
-            .padding(16)
-            .glassBackgroundEffect(.automatic)
+        VStack(spacing: 14) {
+            header
+            statusCard
+            actionButtons
         }
+        .padding(16)
         .frame(width: 340)
         .padding(12)
     }
@@ -36,21 +32,16 @@ struct NativePopoverView: View {
                 .scaledToFit()
                 .frame(width: 42, height: 42)
                 .clipShape(RoundedRectangle(cornerRadius: 12, style: .continuous))
-                .glassEffect()
-                .glassEffectID("icon", in: glassSpace)
 
             VStack(alignment: .leading, spacing: 2) {
                 Text("FreeYT")
                     .font(.system(size: 18, weight: .semibold, design: .rounded))
-                    .glassEffect()
-                    .glassEffectID("title", in: glassSpace)
                 Text("Safari toolbar · No-cookie redirect")
                     .font(.footnote)
                     .foregroundStyle(.secondary)
             }
             Spacer()
         }
-        .glassEffectUnion(id: "header", namespace: glassSpace)
     }
 
     private var statusCard: some View {
@@ -63,13 +54,10 @@ struct NativePopoverView: View {
                         .font(.system(size: 24, weight: .semibold))
                         .foregroundStyle(isEnabled ? .green : .orange)
                 )
-                .glassEffect()
-                .glassEffectID("badge", in: glassSpace)
 
             VStack(alignment: .leading, spacing: 4) {
                 Text(statusText())
                     .font(.system(size: 16, weight: .semibold))
-                    .glassEffectID("headline", in: glassSpace)
                 Text(isEnabled ? "Redirecting to youtube-nocookie.com" : "Enable in Safari Extensions")
                     .font(.footnote)
                     .foregroundStyle(.secondary)
@@ -82,13 +70,10 @@ struct NativePopoverView: View {
             }
             .toggleStyle(.switch)
             .tint(.green)
-            .glassEffect()
-            .glassEffectID("toggle", in: glassSpace)
             .frame(width: 72)
         }
-        .glassEffectUnion(id: "status", namespace: glassSpace)
         .padding(14)
-        .glassBackgroundEffect(.automatic)
+        .background(.regularMaterial, in: RoundedRectangle(cornerRadius: 12, style: .continuous))
     }
 
     private var actionButtons: some View {
@@ -100,8 +85,6 @@ struct NativePopoverView: View {
             }
             .buttonStyle(.borderedProminent)
             .tint(isEnabled ? .orange : .green)
-            .glassEffect()
-            .glassEffectID("primary", in: glassSpace)
 
             Button {
                 onOpenSettings()
@@ -109,9 +92,6 @@ struct NativePopoverView: View {
                 Label("Safari Settings", systemImage: "safari")
             }
             .buttonStyle(.bordered)
-            .glassEffect()
-            .glassEffectID("settings", in: glassSpace)
         }
-        .glassEffectUnion(id: "actions", namespace: glassSpace)
     }
 }

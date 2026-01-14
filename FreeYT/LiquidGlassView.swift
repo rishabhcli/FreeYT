@@ -158,7 +158,7 @@ struct LiquidGlassView: View {
     }
 
     private func checkExtensionStatus() {
-        #if os(iOS) && !targetEnvironment(macCatalyst)
+        #if os(iOS) && !targetEnvironment(macCatalyst) && !targetEnvironment(simulator)
         if #available(iOS 15.0, *) {
             SFSafariWebExtensionManager.getStateOfSafariWebExtension(withIdentifier: ExtensionIdentifiers.safariExtensionBundleID) { state, _ in
                 DispatchQueue.main.async {
