@@ -5,11 +5,11 @@
     "action": {
       "type": "redirect",
       "redirect": {
-        "regexSubstitution": "https://www.yout-ube.com/watch?\\1&autoplay=1"
+        "regexSubstitution": "https://www.youtube-nocookie.com/embed/\\1?autoplay=1"
       }
     },
     "condition": {
-      "regexFilter": "^https?://(?:www\\.|m\\.)?youtube\\.com/watch\\?([^#]*\\bv=[^&#]+[^#]*)$",
+      "regexFilter": "^https?://(?:www\\.|m\\.)?youtube\\.com/watch\\?(?:[^#]*&)?v=([a-zA-Z0-9_-]+)",
       "resourceTypes": ["main_frame"]
     }
   },
@@ -19,11 +19,11 @@
     "action": {
       "type": "redirect",
       "redirect": {
-        "regexSubstitution": "https://www.yout-ube.com/shorts/\\1?autoplay=1"
+        "regexSubstitution": "https://www.youtube-nocookie.com/embed/\\1?autoplay=1"
       }
     },
     "condition": {
-      "regexFilter": "^https?://(?:www\\.|m\\.)?youtube\\.com/shorts/([^/?#]+).*$",
+      "regexFilter": "^https?://(?:www\\.|m\\.)?youtube\\.com/shorts/([a-zA-Z0-9_-]+)",
       "resourceTypes": ["main_frame"]
     }
   },
@@ -33,11 +33,11 @@
     "action": {
       "type": "redirect",
       "redirect": {
-        "regexSubstitution": "https://www.yout-ube.com/embed/\\1?autoplay=1"
+        "regexSubstitution": "https://www.youtube-nocookie.com/embed/\\1?autoplay=1"
       }
     },
     "condition": {
-      "regexFilter": "^https?://(?:www\\.|m\\.)?youtube\\.com/embed/([^/?#]+).*$",
+      "regexFilter": "^https?://(?:www\\.|m\\.)?youtube\\.com/embed/([a-zA-Z0-9_-]+)",
       "resourceTypes": ["main_frame"]
     }
   },
@@ -47,11 +47,11 @@
     "action": {
       "type": "redirect",
       "redirect": {
-        "regexSubstitution": "https://www.yout-ube.com/live/\\1?autoplay=1"
+        "regexSubstitution": "https://www.youtube-nocookie.com/embed/\\1?autoplay=1"
       }
     },
     "condition": {
-      "regexFilter": "^https?://(?:www\\.|m\\.)?youtube\\.com/live/([^/?#]+).*$",
+      "regexFilter": "^https?://(?:www\\.|m\\.)?youtube\\.com/live/([a-zA-Z0-9_-]+)",
       "resourceTypes": ["main_frame"]
     }
   },
@@ -61,11 +61,11 @@
     "action": {
       "type": "redirect",
       "redirect": {
-        "regexSubstitution": "https://m.yout-ube.com/watch?\\1&autoplay=1"
+        "regexSubstitution": "https://www.youtube-nocookie.com/embed/\\1?autoplay=1"
       }
     },
     "condition": {
-      "regexFilter": "^https?://m\\.youtube\\.com/watch\\?([^#]*\\bv=[^&#]+[^#]*)$",
+      "regexFilter": "^https?://m\\.youtube\\.com/watch\\?(?:[^#]*&)?v=([a-zA-Z0-9_-]+)",
       "resourceTypes": ["main_frame"]
     }
   },
@@ -75,11 +75,11 @@
     "action": {
       "type": "redirect",
       "redirect": {
-        "regexSubstitution": "https://www.yout-ube.com/watch?v=\\1&autoplay=1"
+        "regexSubstitution": "https://www.youtube-nocookie.com/embed/\\1?autoplay=1"
       }
     },
     "condition": {
-      "regexFilter": "^https?://youtu\\.be/([^/?]+).*$",
+      "regexFilter": "^https?://youtu\\.be/([a-zA-Z0-9_-]+)",
       "resourceTypes": ["main_frame"]
     }
   }

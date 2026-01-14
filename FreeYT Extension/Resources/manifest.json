@@ -11,7 +11,6 @@
   "host_permissions": [
     "*://*.youtube.com/*",
     "*://youtu.be/*",
-    "*://*.yout-ube.com/*",
     "*://*.youtube-nocookie.com/*"
   ],
   "icons": {
@@ -45,18 +44,6 @@
     "service_worker": "background.js",
     "type": "module"
   },
-  "content_scripts": [
-    {
-      "matches": [
-        "*://*.youtube.com/*",
-        "*://youtu.be/*",
-        "*://*.yout-ube.com/*",
-        "*://*.youtube-nocookie.com/*"
-      ],
-      "js": ["content.js"],
-      "run_at": "document_start"
-    }
-  ],
   "browser_specific_settings": {
     "safari": {
       "strict_min_version": "15.4"
