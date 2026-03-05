@@ -6,5 +6,147 @@
     "extension_description": {
         "message": "Automatically redirects YouTube URLs to privacy-enhanced no-cookie embed versions, protecting your privacy by preventing YouTube tracking cookies.",
         "description": "Description of what the extension does."
+    },
+    "protection_enabled": {
+        "message": "Protection Enabled",
+        "description": "Status text when extension is active."
+    },
+    "protection_disabled": {
+        "message": "Protection Disabled",
+        "description": "Status text when extension is paused."
+    },
+    "status_active": {
+        "message": "Active",
+        "description": "Status badge when enabled."
+    },
+    "status_paused": {
+        "message": "Paused",
+        "description": "Status badge when disabled."
+    },
+    "status_unsupported": {
+        "message": "Unsupported",
+        "description": "Status badge for non-Safari browsers."
+    },
+    "redirect_description": {
+        "message": "Redirecting to youtube-nocookie.com",
+        "description": "Detail text when enabled."
+    },
+    "enable_description": {
+        "message": "Enable to redirect YouTube links",
+        "description": "Detail text when disabled."
+    },
+    "manage_allowlist": {
+        "message": "Manage Allowlist",
+        "description": "Title for allowlist section."
+    },
+    "allowlist_description": {
+        "message": "Domains that bypass redirect",
+        "description": "Subtitle for allowlist section."
+    },
+    "refresh_state": {
+        "message": "Refresh State",
+        "description": "Title for refresh action."
+    },
+    "sync_safari": {
+        "message": "Sync with Safari",
+        "description": "Subtitle for refresh action."
+    },
+    "domain_placeholder": {
+        "message": "e.g. music.youtube.com",
+        "description": "Placeholder for allowlist domain input."
+    },
+    "add_button": {
+        "message": "Add",
+        "description": "Add button label."
+    },
+    "no_domains_allowlisted": {
+        "message": "No domains allowlisted",
+        "description": "Empty state for allowlist."
+    },
+    "today": {
+        "message": "TODAY",
+        "description": "Label for today's count."
+    },
+    "this_week": {
+        "message": "THIS WEEK",
+        "description": "Label for weekly count."
+    },
+    "all_time": {
+        "message": "ALL TIME",
+        "description": "Label for total count."
+    },
+    "safari_only_title": {
+        "message": "Safari only",
+        "description": "Status text for non-Safari browsers."
+    },
+    "safari_only_detail": {
+        "message": "This extension requires Safari",
+        "description": "Detail text for non-Safari browsers."
+    },
+    "safari_only_error": {
+        "message": "FreeYT is a Safari-only extension. Install and use it in Safari.",
+        "description": "Error shown in non-Safari browsers."
+    },
+    "error_save": {
+        "message": "Failed to save settings. Please try again.",
+        "description": "Error when toggle fails."
+    },
+    "error_init": {
+        "message": "Failed to initialize extension popup. Please reload.",
+        "description": "Error when popup init fails."
+    },
+    "error_refresh": {
+        "message": "Could not refresh state from Safari.",
+        "description": "Error when refresh fails."
+    },
+    "error_wakeup": {
+        "message": "Extension is waking up. Please try again.",
+        "description": "Error when background script times out."
+    },
+    "error_wakeup_reload": {
+        "message": "Extension is waking up. Please reload the popup.",
+        "description": "Error when init times out."
+    },
+    "error_allowlist_add": {
+        "message": "Failed to add to allowlist.",
+        "description": "Error when adding domain fails."
+    },
+    "error_allowlist_remove": {
+        "message": "Failed to remove from allowlist.",
+        "description": "Error when removing domain fails."
+    },
+    "error_invalid_domain": {
+        "message": "Enter a valid domain (e.g. music.youtube.com)",
+        "description": "Error for invalid domain format."
+    },
+    "error_allowlist_full": {
+        "message": "Allowlist is full (max $COUNT$ domains).",
+        "description": "Error when allowlist is at capacity.",
+        "placeholders": {
+            "COUNT": {
+                "content": "$1",
+                "example": "50"
+            }
+        }
+    },
+    "error_allowlist_duplicate": {
+        "message": "Domain already in allowlist.",
+        "description": "Error when domain is already allowlisted."
+    },
+    "success_domain_added": {
+        "message": "Domain added",
+        "description": "Success message after adding domain."
+    },
+    "success_domain_removed": {
+        "message": "Domain removed",
+        "description": "Success message after removing domain."
+    },
+    "privacy_youtube": {
+        "message": "PRIVACY \u00b7 YOUTUBE.COM",
+        "description": "Header subtitle."
+    },
+    "toggle_label": {
+        "message": "Toggle protection",
+        "description": "Accessibility label for toggle."
     }
 }

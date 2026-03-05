@@ -19,13 +19,13 @@ const rulesPath = join(__dirname, '..', 'Resources', 'rules.json');
 const rules = JSON.parse(readFileSync(rulesPath, 'utf8'));
 
 describe('rules.json structure', () => {
-  it('should contain 6 redirect rules', () => {
-    assert.equal(rules.length, 6, 'Expected 6 rules in rules.json');
+  it('should contain 7 redirect rules', () => {
+    assert.equal(rules.length, 7, 'Expected 7 rules in rules.json');
   });
 
-  it('should have sequential rule IDs from 1 to 6', () => {
+  it('should have sequential rule IDs from 1 to 7', () => {
     const ids = rules.map(r => r.id).sort((a, b) => a - b);
-    assert.deepEqual(ids, [1, 2, 3, 4, 5, 6], 'Rule IDs should be 1-6');
+    assert.deepEqual(ids, [1, 2, 3, 4, 5, 6, 7], 'Rule IDs should be 1-7');
   });
 
   it('should have all rules with type "redirect"', () => {
@@ -217,7 +217,7 @@ describe('URL transformation tests', () => {
     return dnrSubstitution.replace(/\\(\d+)/g, '$$$1');
   }
 
-  it('should transform watch URLs to yout-ube.com with autoplay', () => {
+  it('should transform watch URLs to youtube-nocookie.com with autoplay', () => {
     const rule = rules.find(r => r.id === 1);
     const url = 'https://www.youtube.com/watch?v=dQw4w9WgXcQ';
     const regex = new RegExp(rule.condition.regexFilter);
@@ -225,8 +225,8 @@ describe('URL transformation tests', () => {
 
     const transformed = url.replace(regex, substitution);
     assert.ok(
-      transformed.includes('yout-ube.com'),
-      'Transformed URL should contain yout-ube.com'
+      transformed.includes('youtube-nocookie.com'),
+      'Transformed URL should contain youtube-nocookie.com'
     );
     assert.ok(
       transformed.includes('autoplay=1'),
@@ -234,17 +234,17 @@ describe('URL transformation tests', () => {
     );
   });
 
-  it('should preserve query parameters in watch URL transformation', () => {
+  it('should extract video ID in watch URL transformation', () => {
     const rule = rules.find(r => r.id === 1);
     const url = 'https://www.youtube.com/watch?v=dQw4w9WgXcQ';
     const regex = new RegExp(rule.condition.regexFilter);
     const substitution = convertSubstitution(rule.action.redirect.regexSubstitution);
 
     const transformed = url.replace(regex, substitution);
-    // Rule 1 captures the entire query string and preserves it
+    // Rule 1 captures the video ID and embeds it in the path
     assert.ok(
-      transformed.includes('v=dQw4w9WgXcQ'),
-      'Transformed URL should preserve v parameter'
+      transformed.includes('embed/dQw4w9WgXcQ'),
+      'Transformed URL should contain video ID in embed path'
     );
   });
 
@@ -257,8 +257,8 @@ describe('URL transformation tests', () => {
 
     const transformed = url.replace(regex, substitution);
     assert.ok(
-      transformed.includes('yout-ube.com/shorts/'),
-      'Transformed URL should use yout-ube.com/shorts/'
+      transformed.includes('youtube-nocookie.com/embed/'),
+      'Transformed URL should use youtube-nocookie.com/embed/'
     );
     assert.ok(
       transformed.includes(videoId),
@@ -266,7 +266,7 @@ describe('URL transformation tests', () => {
     );
   });
 
-  it('should transform youtu.be URLs to watch format', () => {
+  it('should transform youtu.be URLs to embed format', () => {
     const rule = rules.find(r => r.id === 6);
     const videoId = 'dQw4w9WgXcQ';
     const url = `https://youtu.be/${videoId}`;
@@ -275,12 +275,12 @@ describe('URL transformation tests', () => {
 
     const transformed = url.replace(regex, substitution);
     assert.ok(
-      transformed.includes('yout-ube.com/watch'),
-      'Transformed URL should use yout-ube.com/watch'
+      transformed.includes('youtube-nocookie.com/embed/'),
+      'Transformed URL should use youtube-nocookie.com/embed/'
     );
     assert.ok(
-      transformed.includes(`v=${videoId}`),
-      `Transformed URL should have v= parameter: ${transformed}`
+      transformed.includes(videoId),
+      `Transformed URL should contain video ID: ${transformed}`
     );
   });
 
@@ -412,11 +412,74 @@ describe('Comprehensive URL coverage', () => {
     { url: 'http://youtu.be/abc123', shouldMatch: true, ruleId: 6 },
   ];
 
+  // Legacy /v/ embed
+  testCases.push(
+    { url: 'https://www.youtube.com/v/abc123', shouldMatch: true, ruleId: 7 },
+    { url: 'https://youtube.com/v/abc123', shouldMatch: true, ruleId: 7 },
+    { url: 'http://www.youtube.com/v/abc123', shouldMatch: true, ruleId: 7 },
+  );
+
   testCases.forEach(({ url, shouldMatch, ruleId }) => {
     it(`Rule ${ruleId} ${shouldMatch ? 'should' : 'should NOT'} match: ${url}`, () => {
       const rule = rules.find(r => r.id === ruleId);
       const regex = new RegExp(rule.condition.regexFilter);
       assert.equal(regex.test(url), shouldMatch);
+    });
+  });
+});
+
+describe('Rule 7: Legacy /v/ embed URLs', () => {
+  const rule = rules.find(r => r.id === 7);
+  const regex = new RegExp(rule.condition.regexFilter);
+
+  it('should match https://www.youtube.com/v/VIDEO_ID', () => {
+    assert.ok(regex.test('https://www.youtube.com/v/dQw4w9WgXcQ'));
+  });
+
+  it('should match https://youtube.com/v/VIDEO_ID (no www)', () => {
+    assert.ok(regex.test('https://youtube.com/v/dQw4w9WgXcQ'));
+  });
+
+  it('should match http://www.youtube.com/v/VIDEO_ID', () => {
+    assert.ok(regex.test('http://www.youtube.com/v/dQw4w9WgXcQ'));
+  });
+
+  it('should match https://m.youtube.com/v/VIDEO_ID', () => {
+    assert.ok(regex.test('https://m.youtube.com/v/dQw4w9WgXcQ'));
+  });
+
+  it('should transform to youtube-nocookie.com embed', () => {
+    const url = 'https://www.youtube.com/v/dQw4w9WgXcQ';
+    const substitution = rule.action.redirect.regexSubstitution.replace(/\\(\d+)/g, '$$$1');
+    const transformed = url.replace(regex, substitution);
+    assert.ok(transformed.includes('youtube-nocookie.com/embed/dQw4w9WgXcQ'));
+    assert.ok(transformed.includes('autoplay=1'));
+  });
+});
+
+describe('Non-video YouTube page exclusions', () => {
+  const nonVideoUrls = [
+    'https://www.youtube.com/',
+    'https://www.youtube.com/@username',
+    'https://www.youtube.com/channel/UCxyz123',
+    'https://www.youtube.com/c/ChannelName',
+    'https://www.youtube.com/feed/subscriptions',
+    'https://www.youtube.com/feed/trending',
+    'https://www.youtube.com/results?search_query=test',
+    'https://www.youtube.com/playlist?list=PLxyz123',
+    'https://www.youtube.com/trending',
+    'https://www.youtube.com/gaming',
+    'https://www.youtube.com/premium',
+    'https://www.youtube.com/account',
+    'https://www.youtube.com/about',
+  ];
+
+  nonVideoUrls.forEach(url => {
+    it(`should NOT match: ${url}`, () => {
+      rules.forEach(rule => {
+        const regex = new RegExp(rule.condition.regexFilter);
+        assert.ok(!regex.test(url), `Rule ${rule.id} incorrectly matched non-video URL: ${url}`);
+      });
     });
   });
 });

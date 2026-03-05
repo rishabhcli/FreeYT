@@ -44,6 +44,13 @@
     "service_worker": "background.js",
     "type": "module"
   },
+  "content_scripts": [
+    {
+      "matches": ["*://*.youtube-nocookie.com/*"],
+      "js": ["banner.js"],
+      "run_at": "document_idle"
+    }
+  ],
   "browser_specific_settings": {
     "safari": {
       "strict_min_version": "15.4"

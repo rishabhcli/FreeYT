@@ -14,36 +14,22 @@ class SceneDelegate: UIResponder, UIWindowSceneDelegate {
 
     func scene(_ scene: UIScene, willConnectTo session: UISceneSession, options connectionOptions: UIScene.ConnectionOptions) {
         guard let windowScene = (scene as? UIWindowScene) else { return }
-
-        // Create window
         let window = UIWindow(windowScene: windowScene)
 
-        // Use the new Liquid Glass SwiftUI view
-        let liquidGlassVC = LiquidGlassHostingController()
-        window.rootViewController = liquidGlassVC
+        if UserDefaults.standard.bool(forKey: "onboardingCompleted") {
+            window.rootViewController = LiquidGlassHostingController()
+        } else {
+            let onboardingView = OnboardingView {
+                let transition = CATransition()
+                transition.type = .fade
+                transition.duration = 0.3
+                window.layer.add(transition, forKey: kCATransition)
+                window.rootViewController = LiquidGlassHostingController()
+            }
+            window.rootViewController = UIHostingController(rootView: onboardingView)
+        }
 
-        // Make window visible
         self.window = window
         window.makeKeyAndVisible()
-    }
-
-    func sceneDidDisconnect(_ scene: UIScene) {
-        // Called as the scene is being released by the system.
-    }
-
-    func sceneDidBecomeActive(_ scene: UIScene) {
-        // Called when the scene has moved from an inactive state to an active state.
-    }
-
-    func sceneWillResignActive(_ scene: UIScene) {
-        // Called when the scene will move from an active state to an inactive state.
-    }
-
-    func sceneWillEnterForeground(_ scene: UIScene) {
-        // Called as the scene transitions from the background to the foreground.
-    }
-
-    func sceneDidEnterBackground(_ scene: UIScene) {
-        // Called as the scene transitions from the foreground to the background.
     }
 }

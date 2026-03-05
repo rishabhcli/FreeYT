@@ -7,8 +7,8 @@
     "test": "node --test",
     "test:background": "node --test background.test.js",
     "test:popup": "node --test popup.test.js",
-    "test:content": "node --test content.test.js",
-    "test:rules": "node --test rules.test.js"
+    "test:rules": "node --test rules.test.js",
+    "test:banner": "node --test banner.test.js"
   },
   "devDependencies": {}
 }

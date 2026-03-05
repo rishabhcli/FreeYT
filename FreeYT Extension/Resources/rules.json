@@ -82,5 +82,19 @@
       "regexFilter": "^https?://youtu\\.be/([a-zA-Z0-9_-]+)",
       "resourceTypes": ["main_frame"]
     }
+  },
+  {
+    "id": 7,
+    "priority": 1,
+    "action": {
+      "type": "redirect",
+      "redirect": {
+        "regexSubstitution": "https://www.youtube-nocookie.com/embed/\\1?autoplay=1"
+      }
+    },
+    "condition": {
+      "regexFilter": "^https?://(?:www\\.|m\\.)?youtube\\.com/v/([a-zA-Z0-9_-]+)",
+      "resourceTypes": ["main_frame"]
+    }
   }
 ]

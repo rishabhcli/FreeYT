@@ -8,5 +8,5 @@
 import Foundation
 
 enum ExtensionIdentifiers {
-    static let safariExtensionBundleID = "com.rishabh.FreeYT.Extension"
+    static let safariExtensionBundleID = "com.freeyt.app.extension"
 }

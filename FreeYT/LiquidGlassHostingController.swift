@@ -22,24 +22,33 @@ final class LiquidGlassHostingController: UIHostingController<LiquidGlassView> {
     }
 
     private func setupAppearance() {
-        // Transparent navigation bar for seamless glass effect
-        navigationController?.navigationBar.isHidden = true
-
-        // Ensure dark mode for optimal glass effect visibility
-        overrideUserInterfaceStyle = .dark
-
-        // Transparent background
-        view.backgroundColor = .clear
+        if #available(iOS 26.0, *) {
+            // Let system manage background and navigation chrome for Liquid Glass
+            view.backgroundColor = .systemBackground
+        } else {
+            // Hide navigation bar for seamless glass effect on older iOS
+            navigationController?.navigationBar.isHidden = true
+            // Force dark mode for optimal glass effect visibility
+            overrideUserInterfaceStyle = .dark
+            view.backgroundColor = .clear
+        }
     }
 
     override func viewWillAppear(_ animated: Bool) {
         super.viewWillAppear(animated)
 
-        // Hide navigation bar if present
-        navigationController?.setNavigationBarHidden(true, animated: animated)
+        if #available(iOS 26.0, *) {
+            // NavigationSplitView handles its own nav bar
+        } else {
+            navigationController?.setNavigationBarHidden(true, animated: animated)
+        }
     }
 
     override var preferredStatusBarStyle: UIStatusBarStyle {
-        return .lightContent
+        if #available(iOS 26.0, *) {
+            return .default
+        } else {
+            return .lightContent
+        }
     }
 }

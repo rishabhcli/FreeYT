@@ -7,21 +7,13 @@
 	objects = {
 
 /* Begin PBXBuildFile section */
-		490E24422EE785DD0083C8A1 /* FreeYT - Mac.appex in Embed Foundation Extensions */ = {isa = PBXBuildFile; fileRef = 490E242A2EE785DD0083C8A1 /* FreeYT - Mac.appex */; platformFilter = maccatalyst; settings = {ATTRIBUTES = (RemoveHeadersOnCopy, ); }; };
 		494052A82EA56865008381B4 /* FreeYT Extension.appex in Embed Foundation Extensions */ = {isa = PBXBuildFile; fileRef = 494052A72EA56865008381B4 /* FreeYT Extension.appex */; settings = {ATTRIBUTES = (RemoveHeadersOnCopy, ); }; };
-		49A1F0012EFACE1000000001 /* SafariExtensionHandler.swift in Sources */ = {isa = PBXBuildFile; fileRef = 49A1F0012EFACE0000000001 /* SafariExtensionHandler.swift */; };
-		49A1F0012EFACE1000000002 /* SafariExtensionViewController.swift in Sources */ = {isa = PBXBuildFile; fileRef = 49A1F0012EFACE0000000002 /* SafariExtensionViewController.swift */; };
-		49A1F0012EFACE1000000003 /* NativePopoverView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 49A1F0012EFACE0000000003 /* NativePopoverView.swift */; };
+		494052D32EA56865008381B4 /* SharedState.swift in Sources */ = {isa = PBXBuildFile; fileRef = 494052D22EA56865008381B4 /* SharedState.swift */; };
+		494052E02EA56865008381B4 /* FreeYTWidget.appex in Embed Foundation Extensions */ = {isa = PBXBuildFile; fileRef = 494052E32EA56865008381B4 /* FreeYTWidget.appex */; settings = {ATTRIBUTES = (RemoveHeadersOnCopy, ); }; };
+		494052E12EA56865008381B4 /* SharedState.swift in Sources */ = {isa = PBXBuildFile; fileRef = 494052D22EA56865008381B4 /* SharedState.swift */; };
 /* End PBXBuildFile section */
 
 /* Begin PBXContainerItemProxy section */
-		490E24402EE785DD0083C8A1 /* PBXContainerItemProxy */ = {
-			isa = PBXContainerItemProxy;
-			containerPortal = 4940526C2EA56864008381B4 /* Project object */;
-			proxyType = 1;
-			remoteGlobalIDString = 490E24292EE785DD0083C8A1;
-			remoteInfo = "FreeYT - Mac";
-		};
 		494052922EA56864008381B4 /* PBXContainerItemProxy */ = {
 			isa = PBXContainerItemProxy;
 			containerPortal = 4940526C2EA56864008381B4 /* Project object */;
@@ -43,6 +35,13 @@
 			remoteGlobalIDString = 494052A62EA56865008381B4;
 			remoteInfo = "FreeYT Extension";
 		};
+		494052E22EA56865008381B4 /* PBXContainerItemProxy */ = {
+			isa = PBXContainerItemProxy;
+			containerPortal = 4940526C2EA56864008381B4 /* Project object */;
+			proxyType = 1;
+			remoteGlobalIDString = 494052E92EA56865008381B4;
+			remoteInfo = FreeYTWidget;
+		};
 /* End PBXContainerItemProxy section */
 
 /* Begin PBXCopyFilesBuildPhase section */
@@ -52,31 +51,22 @@
 			dstSubfolder = PlugIns;
 			files = (
 				494052A82EA56865008381B4 /* FreeYT Extension.appex in Embed Foundation Extensions */,
-				490E24422EE785DD0083C8A1 /* FreeYT - Mac.appex in Embed Foundation Extensions */,
+				494052E02EA56865008381B4 /* FreeYTWidget.appex in Embed Foundation Extensions */,
 			);
 			name = "Embed Foundation Extensions";
 		};
 /* End PBXCopyFilesBuildPhase section */
 
 /* Begin PBXFileReference section */
-		490E242A2EE785DD0083C8A1 /* FreeYT - Mac.appex */ = {isa = PBXFileReference; explicitFileType = "wrapper.app-extension"; includeInIndex = 0; path = "FreeYT - Mac.appex"; sourceTree = BUILT_PRODUCTS_DIR; };
 		494052742EA56864008381B4 /* FreeYT.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = FreeYT.app; sourceTree = BUILT_PRODUCTS_DIR; };
 		494052912EA56864008381B4 /* FreeYTTests.xctest */ = {isa = PBXFileReference; explicitFileType = wrapper.cfbundle; includeInIndex = 0; path = FreeYTTests.xctest; sourceTree = BUILT_PRODUCTS_DIR; };
 		4940529B2EA56865008381B4 /* FreeYTUITests.xctest */ = {isa = PBXFileReference; explicitFileType = wrapper.cfbundle; includeInIndex = 0; path = FreeYTUITests.xctest; sourceTree = BUILT_PRODUCTS_DIR; };
 		494052A72EA56865008381B4 /* FreeYT Extension.appex */ = {isa = PBXFileReference; explicitFileType = "wrapper.app-extension"; includeInIndex = 0; path = "FreeYT Extension.appex"; sourceTree = BUILT_PRODUCTS_DIR; };
-		49A1F0012EFACE0000000001 /* SafariExtensionHandler.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SafariExtensionHandler.swift; sourceTree = "<group>"; };
-		49A1F0012EFACE0000000002 /* SafariExtensionViewController.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SafariExtensionViewController.swift; sourceTree = "<group>"; };
-		49A1F0012EFACE0000000003 /* NativePopoverView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = NativePopoverView.swift; sourceTree = "<group>"; };
+		494052D22EA56865008381B4 /* SharedState.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = SharedState.swift; path = FreeYT/SharedState.swift; sourceTree = "<group>"; };
+		494052E32EA56865008381B4 /* FreeYTWidget.appex */ = {isa = PBXFileReference; explicitFileType = "wrapper.app-extension"; includeInIndex = 0; path = FreeYTWidget.appex; sourceTree = BUILT_PRODUCTS_DIR; };
 /* End PBXFileReference section */
 
 /* Begin PBXFileSystemSynchronizedBuildFileExceptionSet section */
-		490E24462EE785DD0083C8A1 /* Exceptions for "FreeYT - Mac" folder in "FreeYT - Mac" target */ = {
-			isa = PBXFileSystemSynchronizedBuildFileExceptionSet;
-			membershipExceptions = (
-				Info.plist,
-			);
-			target = 490E24292EE785DD0083C8A1 /* FreeYT - Mac */;
-		};
 		494052C12EA56865008381B4 /* Exceptions for "FreeYT" folder in "FreeYT" target */ = {
 			isa = PBXFileSystemSynchronizedBuildFileExceptionSet;
 			membershipExceptions = (
@@ -91,21 +81,16 @@
 			);
 			target = 494052A62EA56865008381B4 /* FreeYT Extension */;
 		};
+		494052E52EA56865008381B4 /* Exceptions for "FreeYTWidget" folder in "FreeYTWidget" target */ = {
+			isa = PBXFileSystemSynchronizedBuildFileExceptionSet;
+			membershipExceptions = (
+				Info.plist,
+			);
+			target = 494052E92EA56865008381B4 /* FreeYTWidget */;
+		};
 /* End PBXFileSystemSynchronizedBuildFileExceptionSet section */
 
 /* Begin PBXFileSystemSynchronizedRootGroup section */
-		490E242B2EE785DD0083C8A1 /* FreeYT - Mac */ = {
-			isa = PBXFileSystemSynchronizedRootGroup;
-			exceptions = (
-				490E24462EE785DD0083C8A1 /* Exceptions for "FreeYT - Mac" folder in "FreeYT - Mac" target */,
-			);
-			explicitFolders = (
-				Resources/_locales,
-				Resources/images,
-			);
-			path = "FreeYT - Mac";
-			sourceTree = "<group>";
-		};
 		494052762EA56864008381B4 /* FreeYT */ = {
 			isa = PBXFileSystemSynchronizedRootGroup;
 			exceptions = (
@@ -124,16 +109,6 @@
 			path = FreeYTUITests;
 			sourceTree = "<group>";
 		};
-		49A1F0012EFACE2000000001 /* Mac Native Popover */ = {
-			isa = PBXGroup;
-			children = (
-				49A1F0012EFACE0000000001 /* SafariExtensionHandler.swift */,
-				49A1F0012EFACE0000000002 /* SafariExtensionViewController.swift */,
-				49A1F0012EFACE0000000003 /* NativePopoverView.swift */,
-			);
-			path = "FreeYT - Mac";
-			sourceTree = "<group>";
-		};
 		494052AB2EA56865008381B4 /* FreeYT Extension */ = {
 			isa = PBXFileSystemSynchronizedRootGroup;
 			exceptions = (
@@ -146,14 +121,17 @@
 			path = "FreeYT Extension";
 			sourceTree = "<group>";
 		};
+		494052E42EA56865008381B4 /* FreeYTWidget */ = {
+			isa = PBXFileSystemSynchronizedRootGroup;
+			exceptions = (
+				494052E52EA56865008381B4 /* Exceptions for "FreeYTWidget" folder in "FreeYTWidget" target */,
+			);
+			path = FreeYTWidget;
+			sourceTree = "<group>";
+		};
 /* End PBXFileSystemSynchronizedRootGroup section */
 
 /* Begin PBXFrameworksBuildPhase section */
-		490E24272EE785DD0083C8A1 /* Frameworks */ = {
-			isa = PBXFrameworksBuildPhase;
-			files = (
-			);
-		};
 		494052712EA56864008381B4 /* Frameworks */ = {
 			isa = PBXFrameworksBuildPhase;
 			files = (
@@ -174,6 +152,11 @@
 			files = (
 			);
 		};
+		494052E72EA56865008381B4 /* Frameworks */ = {
+			isa = PBXFrameworksBuildPhase;
+			files = (
+			);
+		};
 /* End PBXFrameworksBuildPhase section */
 
 /* Begin PBXGroup section */
@@ -184,8 +167,8 @@
 				494052942EA56864008381B4 /* FreeYTTests */,
 				4940529E2EA56865008381B4 /* FreeYTUITests */,
 				494052AB2EA56865008381B4 /* FreeYT Extension */,
-				490E242B2EE785DD0083C8A1 /* FreeYT - Mac */,
-				49A1F0012EFACE2000000001 /* Mac Native Popover */,
+				494052E42EA56865008381B4 /* FreeYTWidget */,
+				494052D22EA56865008381B4 /* SharedState.swift */,
 				494052752EA56864008381B4 /* Products */,
 			);
 			sourceTree = "<group>";
@@ -197,7 +180,7 @@
 				494052912EA56864008381B4 /* FreeYTTests.xctest */,
 				4940529B2EA56865008381B4 /* FreeYTUITests.xctest */,
 				494052A72EA56865008381B4 /* FreeYT Extension.appex */,
-				490E242A2EE785DD0083C8A1 /* FreeYT - Mac.appex */,
+				494052E32EA56865008381B4 /* FreeYTWidget.appex */,
 			);
 			name = Products;
 			sourceTree = "<group>";
@@ -205,24 +188,6 @@
 /* End PBXGroup section */
 
 /* Begin PBXNativeTarget section */
-		490E24292EE785DD0083C8A1 /* FreeYT - Mac */ = {
-			isa = PBXNativeTarget;
-			buildConfigurationList = 490E24432EE785DD0083C8A1 /* Build configuration list for PBXNativeTarget "FreeYT - Mac" */;
-			buildPhases = (
-				490E24262EE785DD0083C8A1 /* Sources */,
-				490E24272EE785DD0083C8A1 /* Frameworks */,
-				490E24282EE785DD0083C8A1 /* Resources */,
-			);
-			buildRules = (
-			);
-			fileSystemSynchronizedGroups = (
-				490E242B2EE785DD0083C8A1 /* FreeYT - Mac */,
-			);
-			name = "FreeYT - Mac";
-			productName = "FreeYT - Mac";
-			productReference = 490E242A2EE785DD0083C8A1 /* FreeYT - Mac.appex */;
-			productType = "com.apple.product-type.app-extension";
-		};
 		494052732EA56864008381B4 /* FreeYT */ = {
 			isa = PBXNativeTarget;
 			buildConfigurationList = 494052C72EA56865008381B4 /* Build configuration list for PBXNativeTarget "FreeYT" */;
@@ -236,7 +201,7 @@
 			);
 			dependencies = (
 				494052AA2EA56865008381B4 /* PBXTargetDependency */,
-				490E24412EE785DD0083C8A1 /* PBXTargetDependency */,
+				494052EA2EA56865008381B4 /* PBXTargetDependency */,
 			);
 			fileSystemSynchronizedGroups = (
 				494052762EA56864008381B4 /* FreeYT */,
@@ -306,6 +271,24 @@
 			productReference = 494052A72EA56865008381B4 /* FreeYT Extension.appex */;
 			productType = "com.apple.product-type.app-extension";
 		};
+		494052E92EA56865008381B4 /* FreeYTWidget */ = {
+			isa = PBXNativeTarget;
+			buildConfigurationList = 494052ED2EA56865008381B4 /* Build configuration list for PBXNativeTarget "FreeYTWidget" */;
+			buildPhases = (
+				494052E62EA56865008381B4 /* Sources */,
+				494052E72EA56865008381B4 /* Frameworks */,
+				494052E82EA56865008381B4 /* Resources */,
+			);
+			buildRules = (
+			);
+			fileSystemSynchronizedGroups = (
+				494052E42EA56865008381B4 /* FreeYTWidget */,
+			);
+			name = FreeYTWidget;
+			productName = FreeYTWidget;
+			productReference = 494052E32EA56865008381B4 /* FreeYTWidget.appex */;
+			productType = "com.apple.product-type.app-extension";
+		};
 /* End PBXNativeTarget section */
 
 /* Begin PBXProject section */
@@ -316,9 +299,6 @@
 				LastSwiftUpdateCheck = 2610;
 				LastUpgradeCheck = 2610;
 				TargetAttributes = {
-					490E24292EE785DD0083C8A1 = {
-						CreatedOnToolsVersion = 26.1.1;
-					};
 					494052732EA56864008381B4 = {
 						CreatedOnToolsVersion = 26.0.1;
 					};
@@ -331,6 +311,9 @@
 						TestTargetID = 494052732EA56864008381B4;
 					};
 					494052A62EA56865008381B4 = {
+						CreatedOnToolsVersion = 26.0.1;
+					};
+					494052E92EA56865008381B4 = {
 						CreatedOnToolsVersion = 26.0.1;
 					};
 				};
@@ -353,17 +336,12 @@
 				494052902EA56864008381B4 /* FreeYTTests */,
 				4940529A2EA56865008381B4 /* FreeYTUITests */,
 				494052A62EA56865008381B4 /* FreeYT Extension */,
-				490E24292EE785DD0083C8A1 /* FreeYT - Mac */,
+				494052E92EA56865008381B4 /* FreeYTWidget */,
 			);
 		};
 /* End PBXProject section */
 
 /* Begin PBXResourcesBuildPhase section */
-		490E24282EE785DD0083C8A1 /* Resources */ = {
-			isa = PBXResourcesBuildPhase;
-			files = (
-			);
-		};
 		494052722EA56864008381B4 /* Resources */ = {
 			isa = PBXResourcesBuildPhase;
 			files = (
@@ -384,17 +362,14 @@
 			files = (
 			);
 		};
+		494052E82EA56865008381B4 /* Resources */ = {
+			isa = PBXResourcesBuildPhase;
+			files = (
+			);
+		};
 /* End PBXResourcesBuildPhase section */
 
 /* Begin PBXSourcesBuildPhase section */
-		490E24262EE785DD0083C8A1 /* Sources */ = {
-			isa = PBXSourcesBuildPhase;
-			files = (
-				49A1F0012EFACE1000000001 /* SafariExtensionHandler.swift in Sources */,
-				49A1F0012EFACE1000000002 /* SafariExtensionViewController.swift in Sources */,
-				49A1F0012EFACE1000000003 /* NativePopoverView.swift in Sources */,
-			);
-		};
 		494052702EA56864008381B4 /* Sources */ = {
 			isa = PBXSourcesBuildPhase;
 			files = (
@@ -413,16 +388,18 @@
 		494052A32EA56865008381B4 /* Sources */ = {
 			isa = PBXSourcesBuildPhase;
 			files = (
+				494052D32EA56865008381B4 /* SharedState.swift in Sources */,
+			);
+		};
+		494052E62EA56865008381B4 /* Sources */ = {
+			isa = PBXSourcesBuildPhase;
+			files = (
+				494052E12EA56865008381B4 /* SharedState.swift in Sources */,
 			);
 		};
 /* End PBXSourcesBuildPhase section */
 
 /* Begin PBXTargetDependency section */
-		490E24412EE785DD0083C8A1 /* PBXTargetDependency */ = {
-			isa = PBXTargetDependency;
-			target = 490E24292EE785DD0083C8A1 /* FreeYT - Mac */;
-			targetProxy = 490E24402EE785DD0083C8A1 /* PBXContainerItemProxy */;
-		};
 		494052932EA56864008381B4 /* PBXTargetDependency */ = {
 			isa = PBXTargetDependency;
 			target = 494052732EA56864008381B4 /* FreeYT */;
@@ -438,81 +415,14 @@
 			target = 494052A62EA56865008381B4 /* FreeYT Extension */;
 			targetProxy = 494052A92EA56865008381B4 /* PBXContainerItemProxy */;
 		};
+		494052EA2EA56865008381B4 /* PBXTargetDependency */ = {
+			isa = PBXTargetDependency;
+			target = 494052E92EA56865008381B4 /* FreeYTWidget */;
+			targetProxy = 494052E22EA56865008381B4 /* PBXContainerItemProxy */;
+		};
 /* End PBXTargetDependency section */
 
 /* Begin XCBuildConfiguration section */
-		490E24442EE785DD0083C8A1 /* Debug configuration for PBXNativeTarget "FreeYT - Mac" */ = {
-			isa = XCBuildConfiguration;
-			buildSettings = {
-				CODE_SIGN_STYLE = Automatic;
-				CURRENT_PROJECT_VERSION = 1;
-				DEVELOPMENT_TEAM = UZD4BS94DT;
-				ENABLE_APP_SANDBOX = YES;
-				ENABLE_HARDENED_RUNTIME = YES;
-				ENABLE_USER_SELECTED_FILES = readonly;
-				GENERATE_INFOPLIST_FILE = YES;
-				INFOPLIST_FILE = "FreeYT - Mac/Info.plist";
-				INFOPLIST_KEY_CFBundleDisplayName = "FreeYT - Mac";
-				INFOPLIST_KEY_NSHumanReadableCopyright = "";
-				LD_RUNPATH_SEARCH_PATHS = (
-					"$(inherited)",
-					"@executable_path/../Frameworks",
-					"@executable_path/../../../../Frameworks",
-				);
-				MACOSX_DEPLOYMENT_TARGET = 26.1;
-				MARKETING_VERSION = 1.0;
-				OTHER_LDFLAGS = (
-					"-framework",
-					SafariServices,
-				);
-				PRODUCT_BUNDLE_IDENTIFIER = "com.freeyt.app.FreeYT---Mac";
-				PRODUCT_NAME = "$(TARGET_NAME)";
-				SDKROOT = macosx;
-				SKIP_INSTALL = YES;
-				STRING_CATALOG_GENERATE_SYMBOLS = YES;
-				SWIFT_APPROACHABLE_CONCURRENCY = YES;
-				SWIFT_EMIT_LOC_STRINGS = YES;
-				SWIFT_UPCOMING_FEATURE_MEMBER_IMPORT_VISIBILITY = YES;
-				SWIFT_VERSION = 5.0;
-			};
-			name = Debug;
-		};
-		490E24452EE785DD0083C8A1 /* Release configuration for PBXNativeTarget "FreeYT - Mac" */ = {
-			isa = XCBuildConfiguration;
-			buildSettings = {
-				CODE_SIGN_STYLE = Automatic;
-				CURRENT_PROJECT_VERSION = 1;
-				DEVELOPMENT_TEAM = UZD4BS94DT;
-				ENABLE_APP_SANDBOX = YES;
-				ENABLE_HARDENED_RUNTIME = YES;
-				ENABLE_USER_SELECTED_FILES = readonly;
-				GENERATE_INFOPLIST_FILE = YES;
-				INFOPLIST_FILE = "FreeYT - Mac/Info.plist";
-				INFOPLIST_KEY_CFBundleDisplayName = "FreeYT - Mac";
-				INFOPLIST_KEY_NSHumanReadableCopyright = "";
-				LD_RUNPATH_SEARCH_PATHS = (
-					"$(inherited)",
-					"@executable_path/../Frameworks",
-					"@executable_path/../../../../Frameworks",
-				);
-				MACOSX_DEPLOYMENT_TARGET = 26.1;
-				MARKETING_VERSION = 1.0;
-				OTHER_LDFLAGS = (
-					"-framework",
-					SafariServices,
-				);
-				PRODUCT_BUNDLE_IDENTIFIER = "com.freeyt.app.FreeYT---Mac";
-				PRODUCT_NAME = "$(TARGET_NAME)";
-				SDKROOT = macosx;
-				SKIP_INSTALL = YES;
-				STRING_CATALOG_GENERATE_SYMBOLS = YES;
-				SWIFT_APPROACHABLE_CONCURRENCY = YES;
-				SWIFT_EMIT_LOC_STRINGS = YES;
-				SWIFT_UPCOMING_FEATURE_MEMBER_IMPORT_VISIBILITY = YES;
-				SWIFT_VERSION = 5.0;
-			};
-			name = Release;
-		};
 		494052C32EA56865008381B4 /* Debug configuration for PBXNativeTarget "FreeYT Extension" */ = {
 			isa = XCBuildConfiguration;
 			buildSettings = {
@@ -523,25 +433,23 @@
 				INFOPLIST_FILE = "FreeYT Extension/Info.plist";
 				INFOPLIST_KEY_CFBundleDisplayName = "FreeYT Extension";
 				INFOPLIST_KEY_NSHumanReadableCopyright = "";
-				IPHONEOS_DEPLOYMENT_TARGET = 15.0;
+				IPHONEOS_DEPLOYMENT_TARGET = 26.1;
 				LD_RUNPATH_SEARCH_PATHS = (
 					"$(inherited)",
 					"@executable_path/Frameworks",
 					"@executable_path/../../Frameworks",
 				);
-				MACOSX_DEPLOYMENT_TARGET = 14.0;
 				MARKETING_VERSION = 1.0;
 				OTHER_LDFLAGS = (
 					"-framework",
 					SafariServices,
 				);
-				PRODUCT_BUNDLE_IDENTIFIER = com.rishabh.FreeYT.Extension;
-				"PRODUCT_BUNDLE_IDENTIFIER[sdk=macosx*]" = com.rishabh.FreeYT.Extension;
+				PRODUCT_BUNDLE_IDENTIFIER = com.rishabhdev.FreeYT.Extension;
 				PRODUCT_NAME = "$(TARGET_NAME)";
 				SKIP_INSTALL = YES;
 				STRING_CATALOG_GENERATE_SYMBOLS = YES;
-				SUPPORTED_PLATFORMS = "iphoneos iphonesimulator macosx";
-				SUPPORTS_MACCATALYST = YES;
+				SUPPORTED_PLATFORMS = "iphoneos iphonesimulator";
+				SUPPORTS_MACCATALYST = NO;
 				SWIFT_APPROACHABLE_CONCURRENCY = YES;
 				SWIFT_EMIT_LOC_STRINGS = YES;
 				SWIFT_UPCOMING_FEATURE_MEMBER_IMPORT_VISIBILITY = YES;
@@ -560,25 +468,23 @@
 				INFOPLIST_FILE = "FreeYT Extension/Info.plist";
 				INFOPLIST_KEY_CFBundleDisplayName = "FreeYT Extension";
 				INFOPLIST_KEY_NSHumanReadableCopyright = "";
-				IPHONEOS_DEPLOYMENT_TARGET = 15.0;
+				IPHONEOS_DEPLOYMENT_TARGET = 26.1;
 				LD_RUNPATH_SEARCH_PATHS = (
 					"$(inherited)",
 					"@executable_path/Frameworks",
 					"@executable_path/../../Frameworks",
 				);
-				MACOSX_DEPLOYMENT_TARGET = 14.0;
 				MARKETING_VERSION = 1.0;
 				OTHER_LDFLAGS = (
 					"-framework",
 					SafariServices,
 				);
-				PRODUCT_BUNDLE_IDENTIFIER = com.rishabh.FreeYT.Extension;
-				"PRODUCT_BUNDLE_IDENTIFIER[sdk=macosx*]" = com.rishabh.FreeYT.Extension;
+				PRODUCT_BUNDLE_IDENTIFIER = com.rishabhdev.FreeYT.Extension;
 				PRODUCT_NAME = "$(TARGET_NAME)";
 				SKIP_INSTALL = YES;
 				STRING_CATALOG_GENERATE_SYMBOLS = YES;
-				SUPPORTED_PLATFORMS = "iphoneos iphonesimulator macosx";
-				SUPPORTS_MACCATALYST = YES;
+				SUPPORTED_PLATFORMS = "iphoneos iphonesimulator";
+				SUPPORTS_MACCATALYST = NO;
 				SWIFT_APPROACHABLE_CONCURRENCY = YES;
 				SWIFT_EMIT_LOC_STRINGS = YES;
 				SWIFT_UPCOMING_FEATURE_MEMBER_IMPORT_VISIBILITY = YES;
@@ -600,15 +506,13 @@
 				INFOPLIST_KEY_CFBundleDisplayName = FreeYT;
 				INFOPLIST_KEY_UIApplicationSupportsIndirectInputEvents = YES;
 				INFOPLIST_KEY_UILaunchStoryboardName = LaunchScreen;
-				INFOPLIST_KEY_UIMainStoryboardFile = Main;
 				INFOPLIST_KEY_UISupportedInterfaceOrientations_iPad = "UIInterfaceOrientationPortrait UIInterfaceOrientationPortraitUpsideDown UIInterfaceOrientationLandscapeLeft UIInterfaceOrientationLandscapeRight";
 				INFOPLIST_KEY_UISupportedInterfaceOrientations_iPhone = "UIInterfaceOrientationPortrait UIInterfaceOrientationLandscapeLeft UIInterfaceOrientationLandscapeRight";
-				IPHONEOS_DEPLOYMENT_TARGET = 15.0;
+				IPHONEOS_DEPLOYMENT_TARGET = 26.1;
 				LD_RUNPATH_SEARCH_PATHS = (
 					"$(inherited)",
 					"@executable_path/Frameworks",
 				);
-				MACOSX_DEPLOYMENT_TARGET = 14.0;
 				MARKETING_VERSION = 1.0;
 				OTHER_LDFLAGS = (
 					"-framework",
@@ -616,12 +520,11 @@
 					"-framework",
 					WebKit,
 				);
-				PRODUCT_BUNDLE_IDENTIFIER = com.rishabh.FreeYT;
-				"PRODUCT_BUNDLE_IDENTIFIER[sdk=macosx*]" = com.rishabh.FreeYT;
+				PRODUCT_BUNDLE_IDENTIFIER = com.rishabhdev.FreeYT;
 				PRODUCT_NAME = "$(TARGET_NAME)";
 				STRING_CATALOG_GENERATE_SYMBOLS = YES;
-				SUPPORTED_PLATFORMS = "iphoneos iphonesimulator macosx";
-				SUPPORTS_MACCATALYST = YES;
+				SUPPORTED_PLATFORMS = "iphonesimulator iphoneos";
+				SUPPORTS_MACCATALYST = NO;
 				SWIFT_APPROACHABLE_CONCURRENCY = YES;
 				SWIFT_DEFAULT_ACTOR_ISOLATION = MainActor;
 				SWIFT_EMIT_LOC_STRINGS = YES;
@@ -644,15 +547,13 @@
 				INFOPLIST_KEY_CFBundleDisplayName = FreeYT;
 				INFOPLIST_KEY_UIApplicationSupportsIndirectInputEvents = YES;
 				INFOPLIST_KEY_UILaunchStoryboardName = LaunchScreen;
-				INFOPLIST_KEY_UIMainStoryboardFile = Main;
 				INFOPLIST_KEY_UISupportedInterfaceOrientations_iPad = "UIInterfaceOrientationPortrait UIInterfaceOrientationPortraitUpsideDown UIInterfaceOrientationLandscapeLeft UIInterfaceOrientationLandscapeRight";
 				INFOPLIST_KEY_UISupportedInterfaceOrientations_iPhone = "UIInterfaceOrientationPortrait UIInterfaceOrientationLandscapeLeft UIInterfaceOrientationLandscapeRight";
-				IPHONEOS_DEPLOYMENT_TARGET = 15.0;
+				IPHONEOS_DEPLOYMENT_TARGET = 26.1;
 				LD_RUNPATH_SEARCH_PATHS = (
 					"$(inherited)",
 					"@executable_path/Frameworks",
 				);
-				MACOSX_DEPLOYMENT_TARGET = 14.0;
 				MARKETING_VERSION = 1.0;
 				OTHER_LDFLAGS = (
 					"-framework",
@@ -660,12 +561,11 @@
 					"-framework",
 					WebKit,
 				);
-				PRODUCT_BUNDLE_IDENTIFIER = com.rishabh.FreeYT;
-				"PRODUCT_BUNDLE_IDENTIFIER[sdk=macosx*]" = com.rishabh.FreeYT;
+				PRODUCT_BUNDLE_IDENTIFIER = com.rishabhdev.FreeYT;
 				PRODUCT_NAME = "$(TARGET_NAME)";
 				STRING_CATALOG_GENERATE_SYMBOLS = YES;
-				SUPPORTED_PLATFORMS = "iphoneos iphonesimulator macosx";
-				SUPPORTS_MACCATALYST = YES;
+				SUPPORTED_PLATFORMS = "iphonesimulator iphoneos";
+				SUPPORTS_MACCATALYST = NO;
 				SWIFT_APPROACHABLE_CONCURRENCY = YES;
 				SWIFT_DEFAULT_ACTOR_ISOLATION = MainActor;
 				SWIFT_EMIT_LOC_STRINGS = YES;
@@ -728,7 +628,7 @@
 				GCC_WARN_UNINITIALIZED_AUTOS = YES_AGGRESSIVE;
 				GCC_WARN_UNUSED_FUNCTION = YES;
 				GCC_WARN_UNUSED_VARIABLE = YES;
-				IPHONEOS_DEPLOYMENT_TARGET = 26.0;
+				IPHONEOS_DEPLOYMENT_TARGET = 26.1;
 				LOCALIZATION_PREFERS_STRING_CATALOGS = YES;
 				MTL_ENABLE_DEBUG_INFO = INCLUDE_SOURCE;
 				MTL_FAST_MATH = YES;
@@ -787,7 +687,7 @@
 				GCC_WARN_UNINITIALIZED_AUTOS = YES_AGGRESSIVE;
 				GCC_WARN_UNUSED_FUNCTION = YES;
 				GCC_WARN_UNUSED_VARIABLE = YES;
-				IPHONEOS_DEPLOYMENT_TARGET = 26.0;
+				IPHONEOS_DEPLOYMENT_TARGET = 26.1;
 				LOCALIZATION_PREFERS_STRING_CATALOGS = YES;
 				MTL_ENABLE_DEBUG_INFO = NO;
 				MTL_FAST_MATH = YES;
@@ -882,17 +782,73 @@
 			};
 			name = Release;
 		};
+		494052EB2EA56865008381B4 /* Debug configuration for PBXNativeTarget "FreeYTWidget" */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				CODE_SIGN_ENTITLEMENTS = FreeYTWidget/FreeYTWidget.entitlements;
+				CODE_SIGN_STYLE = Automatic;
+				CURRENT_PROJECT_VERSION = 1;
+				DEVELOPMENT_TEAM = UZD4BS94DT;
+				GENERATE_INFOPLIST_FILE = YES;
+				INFOPLIST_FILE = FreeYTWidget/Info.plist;
+				INFOPLIST_KEY_CFBundleDisplayName = FreeYTWidget;
+				INFOPLIST_KEY_NSHumanReadableCopyright = "";
+				IPHONEOS_DEPLOYMENT_TARGET = 26.1;
+				LD_RUNPATH_SEARCH_PATHS = (
+					"$(inherited)",
+					"@executable_path/Frameworks",
+					"@executable_path/../../Frameworks",
+				);
+				MARKETING_VERSION = 1.0;
+				PRODUCT_BUNDLE_IDENTIFIER = com.rishabhdev.FreeYT.Widget;
+				PRODUCT_NAME = "$(TARGET_NAME)";
+				SKIP_INSTALL = YES;
+				STRING_CATALOG_GENERATE_SYMBOLS = YES;
+				SUPPORTED_PLATFORMS = "iphoneos iphonesimulator";
+				SUPPORTS_MACCATALYST = NO;
+				SWIFT_APPROACHABLE_CONCURRENCY = YES;
+				SWIFT_EMIT_LOC_STRINGS = YES;
+				SWIFT_UPCOMING_FEATURE_MEMBER_IMPORT_VISIBILITY = YES;
+				SWIFT_VERSION = 5.0;
+				TARGETED_DEVICE_FAMILY = "1,2";
+			};
+			name = Debug;
+		};
+		494052EC2EA56865008381B4 /* Release configuration for PBXNativeTarget "FreeYTWidget" */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				CODE_SIGN_ENTITLEMENTS = FreeYTWidget/FreeYTWidget.entitlements;
+				CODE_SIGN_STYLE = Automatic;
+				CURRENT_PROJECT_VERSION = 1;
+				DEVELOPMENT_TEAM = UZD4BS94DT;
+				GENERATE_INFOPLIST_FILE = YES;
+				INFOPLIST_FILE = FreeYTWidget/Info.plist;
+				INFOPLIST_KEY_CFBundleDisplayName = FreeYTWidget;
+				INFOPLIST_KEY_NSHumanReadableCopyright = "";
+				IPHONEOS_DEPLOYMENT_TARGET = 26.1;
+				LD_RUNPATH_SEARCH_PATHS = (
+					"$(inherited)",
+					"@executable_path/Frameworks",
+					"@executable_path/../../Frameworks",
+				);
+				MARKETING_VERSION = 1.0;
+				PRODUCT_BUNDLE_IDENTIFIER = com.rishabhdev.FreeYT.Widget;
+				PRODUCT_NAME = "$(TARGET_NAME)";
+				SKIP_INSTALL = YES;
+				STRING_CATALOG_GENERATE_SYMBOLS = YES;
+				SUPPORTED_PLATFORMS = "iphoneos iphonesimulator";
+				SUPPORTS_MACCATALYST = NO;
+				SWIFT_APPROACHABLE_CONCURRENCY = YES;
+				SWIFT_EMIT_LOC_STRINGS = YES;
+				SWIFT_UPCOMING_FEATURE_MEMBER_IMPORT_VISIBILITY = YES;
+				SWIFT_VERSION = 5.0;
+				TARGETED_DEVICE_FAMILY = "1,2";
+			};
+			name = Release;
+		};
 /* End XCBuildConfiguration section */
 
 /* Begin XCConfigurationList section */
-		490E24432EE785DD0083C8A1 /* Build configuration list for PBXNativeTarget "FreeYT - Mac" */ = {
-			isa = XCConfigurationList;
-			buildConfigurations = (
-				490E24442EE785DD0083C8A1 /* Debug configuration for PBXNativeTarget "FreeYT - Mac" */,
-				490E24452EE785DD0083C8A1 /* Release configuration for PBXNativeTarget "FreeYT - Mac" */,
-			);
-			defaultConfigurationName = Release;
-		};
 		4940526F2EA56864008381B4 /* Build configuration list for PBXProject "FreeYT" */ = {
 			isa = XCConfigurationList;
 			buildConfigurations = (
@@ -930,6 +886,14 @@
 			buildConfigurations = (
 				494052D02EA56865008381B4 /* Debug configuration for PBXNativeTarget "FreeYTUITests" */,
 				494052D12EA56865008381B4 /* Release configuration for PBXNativeTarget "FreeYTUITests" */,
+			);
+			defaultConfigurationName = Release;
+		};
+		494052ED2EA56865008381B4 /* Build configuration list for PBXNativeTarget "FreeYTWidget" */ = {
+			isa = XCConfigurationList;
+			buildConfigurations = (
+				494052EB2EA56865008381B4 /* Debug configuration for PBXNativeTarget "FreeYTWidget" */,
+				494052EC2EA56865008381B4 /* Release configuration for PBXNativeTarget "FreeYTWidget" */,
 			);
 			defaultConfigurationName = Release;
 		};

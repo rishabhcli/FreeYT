@@ -3,103 +3,69 @@
   <head>
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1" />
-    <title>FreeYT - Liquid Glass</title>
+    <title>FreeYT</title>
     <link rel="stylesheet" href="popup.css" />
   </head>
   <body class="shell">
-    <div class="ambient ambient-a" aria-hidden="true"></div>
-    <div class="ambient ambient-b" aria-hidden="true"></div>
-    <div class="ambient ambient-c" aria-hidden="true"></div>
-
     <div class="panel">
-      <header class="hero" role="banner">
-        <div class="logo-stack" aria-hidden="true">
-          <span class="logo-ring"></span>
-          <img src="images/icon-48.png" alt="FreeYT icon" width="36" height="36" />
+      <header class="header" role="banner">
+        <div class="header-left">
+          <img src="images/icon-48.png" alt="" width="28" height="28" class="app-icon" />
+          <div class="header-text">
+            <h1 class="app-name">FreeYT</h1>
+            <p class="header-subtitle">PRIVACY &middot; YOUTUBE.COM</p>
+          </div>
         </div>
-        <div class="hero-copy">
-          <p class="eyebrow">Safari taskbar extension</p>
-          <h1>FreeYT Liquid Glass</h1>
-          <p class="lede">Redirects YouTube links to privacy-safe no-cookie embeds.</p>
-        </div>
-        <span id="statusPill" class="pill" role="status" aria-live="polite">Checking…</span>
+        <span id="statusPill" class="status-badge" role="status" aria-live="polite">Active</span>
       </header>
 
-      <main role="main" class="grid">
-        <section class="card glass status-card" role="region" aria-label="Extension status">
-          <div class="status-top">
-            <div class="status-led" id="statusLED" aria-hidden="true">
-              <span class="pulse"></span>
-            </div>
-            <div class="status-copy glass-lift">
-              <p class="label">Protection status</p>
-              <div class="status-row">
-                <h2 id="statusText" aria-live="polite">Enabled</h2>
-                <span class="chip" id="modeChip">Auto-redirect</span>
-              </div>
-              <p class="muted">Safari requests rerouted through youtube-nocookie.com.</p>
-            </div>
-            <label class="switch" aria-label="Toggle FreeYT extension to enable or disable YouTube redirect protection">
-              <input
-                type="checkbox"
-                id="enabledToggle"
-                role="switch"
-                aria-checked="true" />
-              <span class="slider" aria-hidden="true">
-                <span class="spark"></span>
-              </span>
-            </label>
+      <main class="actions" role="main">
+        <div class="action-row" id="toggleRow">
+          <span class="action-icon" aria-hidden="true">&#x1F6E1;&#xFE0F;</span>
+          <div class="action-text">
+            <p class="action-title" id="statusText">Protection Enabled</p>
+            <p class="action-subtitle" id="statusDetail">Redirecting to youtube-nocookie.com</p>
           </div>
-          <div class="status-footer">
-            <div class="metric">
-              <p class="label">Route</p>
-              <p class="value">no-cookie embed</p>
-            </div>
-            <div class="metric">
-              <p class="label">Surface</p>
-              <p class="value">Safari taskbar</p>
-            </div>
-          </div>
-        </section>
+          <label class="switch" aria-label="Toggle protection">
+            <input type="checkbox" id="enabledToggle" role="switch" aria-checked="true" />
+            <span class="slider"></span>
+          </label>
+        </div>
 
-        <section class="card glass info-card" role="region" aria-label="Privacy benefits">
-          <div class="card-head">
-            <p class="eyebrow">Liquid glass stack</p>
-            <p class="pill ghost">No trackers</p>
+        <div class="action-row clickable" id="allowlistRow">
+          <span class="action-icon" aria-hidden="true">&#x1F4CB;</span>
+          <div class="action-text">
+            <p class="action-title">Manage Allowlist</p>
+            <p class="action-subtitle">Domains that bypass redirect <span id="allowlistCount"></span></p>
           </div>
-          <p class="lede">A fluid glass layer cushions your Safari taskbar popup with blurred depth, refractions, and soft specular strokes for Apple’s new Liquid Glass language.</p>
-          <div class="chip-row">
-            <span class="chip ghost">Auto redirects</span>
-            <span class="chip ghost">No cookies</span>
-            <span class="chip ghost">Inline blur</span>
-          </div>
-        </section>
+          <span class="action-chevron" aria-hidden="true">&#x203A;</span>
+        </div>
 
-        <section class="card glass steps-card" role="region" aria-label="Enable steps in Safari">
-          <div class="card-head">
-            <p class="eyebrow">Enable in Safari</p>
-            <p class="pill ghost">2 min setup</p>
+        <div class="action-row clickable" id="refreshRow">
+          <span class="action-icon" aria-hidden="true">&#x1F504;</span>
+          <div class="action-text">
+            <p class="action-title">Refresh State</p>
+            <p class="action-subtitle">Sync with Safari</p>
           </div>
-          <ol class="steps">
-            <li><span class="step-index">1</span>Open Safari.</li>
-            <li><span class="step-index">2</span>Safari Settings → Extensions.</li>
-            <li><span class="step-index">3</span>Enable “FreeYT”.</li>
-            <li><span class="step-index">4</span>Allow page access when prompted.</li>
-          </ol>
-        </section>
-
-        <section class="card glass support-card" role="contentinfo" aria-label="Support and tips">
-          <div class="card-head">
-            <p class="eyebrow">Stay in control</p>
-            <p class="pill ghost">Local only</p>
-          </div>
-          <p class="lede">Switch stays synced with the background script. You can refresh the state at any time to mirror Safari’s current permissions.</p>
-          <div class="actions">
-            <button type="button" id="refreshState" class="btn primary">Refresh state</button>
-            <button type="button" class="btn ghost" disabled aria-disabled="true">Safari handles updates</button>
-          </div>
-        </section>
+          <span class="action-chevron" aria-hidden="true">&#x203A;</span>
+        </div>
       </main>
+
+      <div class="allowlist-panel" id="allowlistPanel" hidden>
+        <div class="allowlist-input-row">
+          <input type="text" id="allowlistInput" class="allowlist-input" placeholder="e.g. music.youtube.com" aria-label="Domain to allowlist" />
+          <button type="button" id="allowlistAdd" class="btn-add">Add</button>
+        </div>
+        <ul id="allowlistEntries" class="allowlist-list" aria-label="Allowlisted domains"></ul>
+      </div>
+
+      <footer class="stats-footer" role="contentinfo">
+        <div class="stats-row">
+          <div class="stat"><span id="todayCount" class="stat-value">0</span><span class="stat-label">TODAY</span></div>
+          <div class="stat"><span id="weekCount" class="stat-value">0</span><span class="stat-label">THIS WEEK</span></div>
+          <div class="stat"><span id="videoCount" class="stat-value">0</span><span class="stat-label">ALL TIME</span></div>
+        </div>
+      </footer>
     </div>
 
     <script src="popup.js"></script>
