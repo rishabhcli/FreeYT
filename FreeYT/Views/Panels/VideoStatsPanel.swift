@@ -1,65 +1,128 @@
 import SwiftUI
+import Charts
 
 struct VideoStatsPanel: View {
-    let videoCount: Int
-    @State private var animateCount = false
-    @Namespace private var statsNamespace
+    let snapshot: DashboardSnapshot
+
+    private struct ChartPoint: Identifiable {
+        let id = UUID()
+        let date: Date
+        let value: Int
+    }
 
     var body: some View {
-        VStack(spacing: 16) {
-            HStack {
-                Text("\u{1F3AC}")
-                    .font(.title2)
-                Text("Videos Watched Ad-Free")
-                    .font(.system(size: 17, weight: .semibold))
-                    .foregroundColor(LiquidGlassTheme.adaptiveText)
+        VStack(alignment: .leading, spacing: 18) {
+            HStack(alignment: .top) {
+                VStack(alignment: .leading, spacing: 6) {
+                    Text("Recent protection")
+                        .font(.system(size: 19, weight: .semibold))
+                        .foregroundStyle(LiquidGlassTheme.adaptiveText)
+                    Text("FreeYT now shows both the trend and the latest privacy-safe routes.")
+                        .font(.system(size: 14, weight: .medium))
+                        .foregroundStyle(LiquidGlassTheme.adaptiveSecondaryText)
+                }
                 Spacer()
-                Pill(text: "Privacy", icon: "shield.fill")
+                Pill(text: "\(snapshot.weekCount) this week", icon: "chart.bar.fill")
             }
 
-            Text("\(videoCount)")
-                .font(.system(size: 56, weight: .bold, design: .rounded))
-                .foregroundColor(LiquidGlassTheme.adaptiveText)
-                .scaleEffect(animateCount ? 1.05 : 1.0)
-                .animation(.spring(response: 0.3, dampingFraction: 0.6), value: videoCount)
+            if snapshot.weekCount == 0 {
+                emptyState
+            } else {
+                Chart(chartPoints) { point in
+                    BarMark(
+                        x: .value("Day", point.date, unit: .day),
+                        y: .value("Protected", point.value)
+                    )
+                    .clipShape(RoundedRectangle(cornerRadius: 6, style: .continuous))
+                    .foregroundStyle(LiquidGlassTheme.accent.gradient)
+                }
+                .frame(height: 160)
+                .chartXAxis {
+                    AxisMarks(values: .stride(by: .day)) { value in
+                        AxisValueLabel(format: .dateTime.weekday(.narrow))
+                    }
+                }
+                .chartYAxis {
+                    AxisMarks(position: .leading)
+                }
 
-            Text("Privacy-protected views via youtube-nocookie.com")
-                .font(.system(size: 14, weight: .medium))
-                .foregroundColor(LiquidGlassTheme.adaptiveSecondaryText)
-                .multilineTextAlignment(.center)
+                VStack(alignment: .leading, spacing: 10) {
+                    Text("Latest protected routes")
+                        .font(.system(size: 15, weight: .semibold))
 
-            statChipsRow
+                    ForEach(snapshot.recentActivity.prefix(5)) { activity in
+                        HStack(alignment: .top, spacing: 12) {
+                            Circle()
+                                .fill(LiquidGlassTheme.accent.opacity(0.22))
+                                .frame(width: 34, height: 34)
+                                .overlay(
+                                    Image(systemName: icon(for: activity.kind))
+                                        .font(.system(size: 14, weight: .semibold))
+                                        .foregroundStyle(LiquidGlassTheme.accentStrong)
+                                )
+
+                            VStack(alignment: .leading, spacing: 3) {
+                                Text(activity.title)
+                                    .font(.system(size: 14, weight: .semibold))
+                                    .foregroundStyle(LiquidGlassTheme.adaptiveText)
+                                Text(activity.subtitle)
+                                    .font(.system(size: 12, weight: .medium))
+                                    .foregroundStyle(LiquidGlassTheme.adaptiveSecondaryText)
+                            }
+
+                            Spacer()
+
+                            Text(activity.timestamp.formatted(.relative(presentation: .named)))
+                                .font(.system(size: 11, weight: .medium))
+                                .foregroundStyle(LiquidGlassTheme.adaptiveMutedText)
+                        }
+                        .glassCard(radius: 16, tint: LiquidGlassTheme.accent.opacity(0.08), padding: 12)
+                    }
+                }
+            }
         }
         .glassCard()
-        .onChange(of: videoCount) { _ in
-            withAnimation {
-                animateCount = true
+    }
+
+    private var emptyState: some View {
+        VStack(alignment: .leading, spacing: 10) {
+            Text("No protected sessions yet.")
+                .font(.system(size: 17, weight: .semibold))
+                .foregroundStyle(LiquidGlassTheme.adaptiveText)
+            Text("Once FreeYT routes your first YouTube link, the activity trend and latest routes will appear here.")
+                .font(.system(size: 14, weight: .medium))
+                .foregroundStyle(LiquidGlassTheme.adaptiveSecondaryText)
+        }
+        .glassCard(radius: 18, tint: LiquidGlassTheme.info.opacity(0.08), padding: 18)
+    }
+
+    private var chartPoints: [ChartPoint] {
+        let calendar = Calendar.current
+        return (0..<7).compactMap { offset in
+            guard let date = calendar.date(byAdding: .day, value: -6 + offset, to: Date()) else {
+                return nil
             }
-            DispatchQueue.main.asyncAfter(deadline: .now() + 0.3) {
-                animateCount = false
-            }
+            let key = DashboardSnapshot.dateKey(for: date)
+            return ChartPoint(date: date, value: snapshot.dailyCounts[key] ?? 0)
         }
     }
 
-    @ViewBuilder
-    private var statChipsRow: some View {
-        if #available(iOS 26.0, *) {
-            GlassEffectContainer(spacing: 8) {
-                HStack(spacing: 12) {
-                    StatChip(icon: "eye.slash.fill", label: "No Ads")
-                        .glassEffectUnion(id: "stats", namespace: statsNamespace)
-                    StatChip(icon: "lock.shield.fill", label: "No Cookies")
-                        .glassEffectUnion(id: "stats", namespace: statsNamespace)
-                    StatChip(icon: "bolt.fill", label: "Fast")
-                        .glassEffectUnion(id: "stats", namespace: statsNamespace)
-                }
-            }
-        } else {
-            HStack(spacing: 12) {
-                StatChip(icon: "eye.slash.fill", label: "No Ads")
-                StatChip(icon: "lock.shield.fill", label: "No Cookies")
-                StatChip(icon: "bolt.fill", label: "Fast")
-            }
+    private func icon(for kind: RedirectActivity.Kind) -> String {
+        switch kind {
+        case .watch:
+            return "play.rectangle.fill"
+        case .shorts:
+            return "bolt.fill"
+        case .live:
+            return "dot.radiowaves.left.and.right"
+        case .embed:
+            return "rectangle.on.rectangle"
+        case .shortLink:
+            return "link"
+        case .legacy:
+            return "film.stack"
+        case .unknown:
+            return "play.fill"
         }
     }
 }

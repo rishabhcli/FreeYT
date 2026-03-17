@@ -2,104 +2,67 @@ import XCTest
 
 final class ScreenshotTests: XCTestCase {
 
-    var app: XCUIApplication!
+    private var app: XCUIApplication!
 
     override func setUpWithError() throws {
         continueAfterFailure = false
-        app = XCUIApplication()
-        app.launchArguments += ["-onboardingCompleted", "YES"]
-        app.launch()
     }
 
     override func tearDownWithError() throws {
+        app?.terminate()
         app = nil
     }
 
-    // MARK: - Screenshot Helpers
+    @MainActor
+    func testScreenshotOverviewDashboard() throws {
+        launchDashboard(section: "overview")
+        XCTAssertTrue(app.staticTexts["Protect YouTube privacy"].waitForExistence(timeout: 5))
+        takeScreenshot(named: "Dashboard-Overview")
+    }
+
+    @MainActor
+    func testScreenshotActivityDashboard() throws {
+        launchDashboard(section: "activity")
+        XCTAssertTrue(app.staticTexts["Recent protection"].waitForExistence(timeout: 5))
+        takeScreenshot(named: "Dashboard-Activity")
+    }
+
+    @MainActor
+    func testScreenshotExceptionsDashboard() throws {
+        launchDashboard(section: "exceptions")
+        XCTAssertTrue(app.staticTexts["Trusted site exceptions"].waitForExistence(timeout: 5))
+        takeScreenshot(named: "Dashboard-Exceptions")
+    }
+
+    @MainActor
+    func testScreenshotTrustDashboard() throws {
+        launchDashboard(section: "trust")
+        XCTAssertTrue(app.staticTexts["Why FreeYT is trustworthy"].waitForExistence(timeout: 5))
+        takeScreenshot(named: "Dashboard-Trust")
+    }
+
+    @MainActor
+    func testScreenshotSetupDashboard() throws {
+        launchDashboard(section: "setup")
+        XCTAssertTrue(app.staticTexts["Setup and verification"].waitForExistence(timeout: 5))
+        takeScreenshot(named: "Dashboard-Setup")
+    }
+
+    private func launchDashboard(section: String) {
+        app = XCUIApplication()
+        app.launchArguments = [
+            "-uiTestingResetState", "YES",
+            "-uiTestingSeedDashboard", "YES",
+            "-onboardingCompleted", "YES",
+            "-dashboardSection", section
+        ]
+        app.launch()
+    }
 
     private func takeScreenshot(named name: String) {
-        let screenshot = app.screenshot()
-        let attachment = XCTAttachment(screenshot: screenshot)
+        let attachment = XCTAttachment(screenshot: app.screenshot())
         attachment.name = name
         attachment.lifetime = .keepAlways
         add(attachment)
-    }
-
-    // MARK: - Main Screen Screenshots
-
-    @MainActor
-    func testScreenshotMainScreenLight() throws {
-        let freeYTText = app.staticTexts["FreeYT"]
-        XCTAssertTrue(freeYTText.waitForExistence(timeout: 5))
-        takeScreenshot(named: "MainScreen-Light")
-    }
-
-    @MainActor
-    func testScreenshotMainScreenDark() throws {
-        let freeYTText = app.staticTexts["FreeYT"]
-        XCTAssertTrue(freeYTText.waitForExistence(timeout: 5))
-        takeScreenshot(named: "MainScreen-Dark")
-    }
-
-    // MARK: - Panel Screenshots
-
-    @MainActor
-    func testScreenshotStatusPanel() throws {
-        let statusText = app.staticTexts["Shield active"]
-        let statusTextAlt = app.staticTexts["Shield paused"]
-        let found = statusText.waitForExistence(timeout: 5) || statusTextAlt.waitForExistence(timeout: 5)
-        XCTAssertTrue(found, "Status panel should be visible")
-        takeScreenshot(named: "StatusPanel")
-    }
-
-    @MainActor
-    func testScreenshotStepsPanel() throws {
-        let stepsHeading = app.staticTexts["Enable in Safari"]
-        XCTAssertTrue(stepsHeading.waitForExistence(timeout: 5))
-        takeScreenshot(named: "StepsPanel")
-    }
-
-    @MainActor
-    func testScreenshotStatistics() throws {
-        let scrollView = app.scrollViews.firstMatch
-        guard scrollView.waitForExistence(timeout: 5) else {
-            XCTFail("Scroll view not found")
-            return
-        }
-        scrollView.swipeUp()
-        Thread.sleep(forTimeInterval: 0.5)
-        takeScreenshot(named: "Statistics")
-    }
-
-    @MainActor
-    func testScreenshotDiagnostics() throws {
-        let scrollView = app.scrollViews.firstMatch
-        guard scrollView.waitForExistence(timeout: 5) else {
-            XCTFail("Scroll view not found")
-            return
-        }
-        scrollView.swipeUp()
-        scrollView.swipeUp()
-        Thread.sleep(forTimeInterval: 0.5)
-        takeScreenshot(named: "Diagnostics")
-    }
-
-    @MainActor
-    func testScreenshotFullScrollSequence() throws {
-        let scrollView = app.scrollViews.firstMatch
-        guard scrollView.waitForExistence(timeout: 5) else {
-            XCTFail("Scroll view not found")
-            return
-        }
-
-        takeScreenshot(named: "FullScroll-Top")
-
-        scrollView.swipeUp()
-        Thread.sleep(forTimeInterval: 0.3)
-        takeScreenshot(named: "FullScroll-Middle")
-
-        scrollView.swipeUp()
-        Thread.sleep(forTimeInterval: 0.3)
-        takeScreenshot(named: "FullScroll-Bottom")
     }
 }

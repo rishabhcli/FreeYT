@@ -1,41 +1,56 @@
 import SwiftUI
 
 enum SidebarSection: String, CaseIterable, Identifiable, Hashable {
-    case status
-    case statistics
+    case overview
+    case activity
+    case exceptions
+    case trust
     case setup
-    case support
-    case about
 
     var id: String { rawValue }
 
     var title: String {
         switch self {
-        case .status:     return "Protection"
-        case .statistics: return "Statistics"
-        case .setup:      return "Setup"
-        case .support:    return "Support"
-        case .about:      return "About"
+        case .overview:
+            return "Overview"
+        case .activity:
+            return "Activity"
+        case .exceptions:
+            return "Exceptions"
+        case .trust:
+            return "Trust"
+        case .setup:
+            return "Setup"
         }
     }
 
     var subtitle: String {
         switch self {
-        case .status:     return "Extension status & toggle"
-        case .statistics: return "Ad-free video count"
-        case .setup:      return "Enable in Safari"
-        case .support:    return "Refresh & diagnostics"
-        case .about:      return "FreeYT info"
+        case .overview:
+            return "Status, sync, and quick actions"
+        case .activity:
+            return "Recent protection and trends"
+        case .exceptions:
+            return "Trusted sites that stay on YouTube"
+        case .trust:
+            return "Local processing and permissions"
+        case .setup:
+            return "Enable, verify, and troubleshoot"
         }
     }
 
     var icon: String {
         switch self {
-        case .status:     return "shield.checkered"
-        case .statistics: return "chart.bar.fill"
-        case .setup:      return "gearshape.2.fill"
-        case .support:    return "wrench.and.screwdriver.fill"
-        case .about:      return "info.circle.fill"
+        case .overview:
+            return "shield.lefthalf.filled"
+        case .activity:
+            return "chart.xyaxis.line"
+        case .exceptions:
+            return "slider.horizontal.3"
+        case .trust:
+            return "lock.shield"
+        case .setup:
+            return "sparkles.rectangle.stack"
         }
     }
 }

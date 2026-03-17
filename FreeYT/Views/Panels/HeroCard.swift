@@ -1,51 +1,82 @@
 import SwiftUI
 
 struct HeroCard: View {
+    let snapshot: DashboardSnapshot
+
     var body: some View {
-        VStack(alignment: .leading, spacing: 12) {
-            HStack(alignment: .center, spacing: 14) {
+        VStack(alignment: .leading, spacing: 18) {
+            HStack(alignment: .top, spacing: 16) {
                 ZStack {
-                    RoundedRectangle(cornerRadius: 18, style: .continuous)
-                        .fill(Color.primary.opacity(0.08))
-                        .frame(width: 62, height: 62)
-                        .overlay(
-                            RoundedRectangle(cornerRadius: 18, style: .continuous)
-                                .strokeBorder(Color.primary.opacity(0.15), lineWidth: 1)
-                        )
+                    if #available(iOS 26.0, macOS 26.0, *) {
+                        RoundedRectangle(cornerRadius: 20, style: .continuous)
+                            .fill(.clear)
+                            .frame(width: 72, height: 72)
+                            .glassEffect(.regular.tint(LiquidGlassTheme.accent.opacity(0.18)), in: RoundedRectangle(cornerRadius: 20, style: .continuous))
+                    } else {
+                        RoundedRectangle(cornerRadius: 20, style: .continuous)
+                            .fill(LiquidGlassTheme.heroGradient)
+                            .frame(width: 72, height: 72)
+                    }
 
                     Image("LargeIcon")
                         .resizable()
                         .scaledToFit()
-                        .frame(width: 50, height: 50)
+                        .frame(width: 58, height: 58)
                         .clipShape(RoundedRectangle(cornerRadius: 14, style: .continuous))
                 }
 
-                VStack(alignment: .leading, spacing: 6) {
-                    Text("FreeYT")
-                        .font(.system(size: 26, weight: .bold, design: .rounded))
-                        .foregroundColor(LiquidGlassTheme.adaptiveText)
+                VStack(alignment: .leading, spacing: 8) {
+                    Text("Protect YouTube privacy")
+                        .font(.system(size: 28, weight: .bold, design: .rounded))
+                        .foregroundStyle(LiquidGlassTheme.adaptiveText)
 
-                    Text("Privacy-first YouTube redirects")
-                        .foregroundColor(LiquidGlassTheme.adaptiveSecondaryText)
-                        .font(.system(size: 14, weight: .medium))
-                        .lineLimit(2)
+                    Text(heroCopy)
+                        .font(.system(size: 15, weight: .medium))
+                        .foregroundStyle(LiquidGlassTheme.adaptiveSecondaryText)
+                        .lineSpacing(4)
                 }
 
                 Spacer()
-
-                VStack(spacing: 6) {
-                    Pill(text: "No-cookie route", icon: "shield.lefthalf.fill")
-                    Pill(text: "Safari ready", icon: "safari")
-                }
             }
 
-            Divider().overlay(Color.primary.opacity(0.12))
+            HStack(spacing: 10) {
+                Pill(text: snapshot.lastSyncState.label, icon: "arrow.triangle.2.circlepath")
+                Pill(text: "Local only", icon: "hand.raised.fill")
+                Pill(text: snapshot.enabled ? "Protection on" : "Protection paused", icon: snapshot.enabled ? "checkmark.shield.fill" : "pause.circle.fill")
+            }
 
-            Text("Redirects YouTube links to privacy-safe no-cookie embeds. Enable the extension in Safari to start protecting your browsing.")
-                .font(.system(size: 14, weight: .medium))
-                .foregroundColor(LiquidGlassTheme.adaptiveSecondaryText)
-                .lineSpacing(4)
+            HStack(spacing: 12) {
+                factCard(title: "Today", value: "\(snapshot.todayCount)", detail: "protected sessions", tone: LiquidGlassTheme.accentStrong)
+                factCard(title: "Trusted sites", value: "\(snapshot.exceptions.count)", detail: "Exceptions", tone: .indigo)
+                factCard(title: "Last route", value: lastRouteValue, detail: "most recent", tone: LiquidGlassTheme.info)
+            }
         }
         .glassCard()
+    }
+
+    private var heroCopy: String {
+        if let lastProtectedAt = snapshot.lastProtectedAt {
+            return "FreeYT is actively routing YouTube links through privacy-enhanced embeds. Last protection event \(lastProtectedAt.formatted(.relative(presentation: .named)))."
+        }
+        return "FreeYT keeps YouTube sessions private by routing supported links through YouTube's privacy-enhanced embed experience."
+    }
+
+    private var lastRouteValue: String {
+        snapshot.recentActivity.first?.host ?? "Waiting"
+    }
+
+    private func factCard(title: String, value: String, detail: String, tone: Color) -> some View {
+        VStack(alignment: .leading, spacing: 4) {
+            Text(title.uppercased())
+                .font(.system(size: 11, weight: .bold))
+                .foregroundStyle(LiquidGlassTheme.adaptiveMutedText)
+            Text(value)
+                .font(.system(size: 18, weight: .bold, design: .rounded))
+                .foregroundStyle(tone)
+            Text(detail)
+                .font(.system(size: 12, weight: .medium))
+                .foregroundStyle(LiquidGlassTheme.adaptiveSecondaryText)
+        }
+        .glassCard(radius: 18, tint: tone.opacity(0.12), padding: 14)
     }
 }

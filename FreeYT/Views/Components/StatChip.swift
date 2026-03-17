@@ -10,7 +10,7 @@ struct StatChip: View {
 
     @ViewBuilder
     private var statChipContent: some View {
-        if #available(iOS 26.0, *) {
+        if #available(iOS 26.0, macOS 26.0, *) {
             HStack(spacing: 6) {
                 Image(systemName: icon)
                     .font(.system(size: 12, weight: .semibold))

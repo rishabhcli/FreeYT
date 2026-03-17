@@ -1,104 +1,43 @@
 import SwiftUI
 
 struct DiagnosticsPanel: View {
-    let isEnabled: Bool
-    let checking: Bool
-    let videoCount: Int
+    let snapshot: DashboardSnapshot
 
     var body: some View {
-        VStack(alignment: .leading, spacing: 10) {
-            HStack {
-                Text("Diagnostics")
-                    .font(.system(size: 17, weight: .semibold))
-                    .foregroundColor(LiquidGlassTheme.adaptiveText)
-                Spacer()
-                Pill(text: "App Groups", icon: "bolt.horizontal.fill")
+        DisclosureGroup {
+            VStack(alignment: .leading, spacing: 10) {
+                diagnosticRow(label: "Bundle", value: Bundle.main.bundleIdentifier ?? "Unknown")
+                diagnosticRow(label: "Sync state", value: snapshot.lastSyncState.label)
+                diagnosticRow(label: "Exceptions", value: "\(snapshot.exceptions.count)")
+                diagnosticRow(label: "Recent routes", value: "\(snapshot.recentActivity.count)")
+                diagnosticRow(label: "App Group", value: SharedState.isAppGroupAvailable ? "Connected" : "Unavailable")
+                diagnosticRow(label: "Last sync", value: snapshot.lastSyncTimestamp?.formatted(date: .abbreviated, time: .shortened) ?? "Unknown")
             }
-
-            diagnosticsGrid
+            .padding(.top, 14)
+        } label: {
+            HStack {
+                Text("Technical details")
+                    .font(.system(size: 16, weight: .semibold))
+                Spacer()
+                Text("Advanced")
+                    .font(.system(size: 11, weight: .bold))
+                    .foregroundStyle(LiquidGlassTheme.adaptiveMutedText)
+            }
         }
         .glassCard()
     }
 
-    @ViewBuilder
-    private var diagnosticsGrid: some View {
-        let labelColor = LiquidGlassTheme.adaptiveSecondaryText
-        let valueColor = LiquidGlassTheme.adaptiveText
-
-        if #available(iOS 16.0, *) {
-            Grid(alignment: .leading, horizontalSpacing: 12, verticalSpacing: 8) {
-                GridRow {
-                    Text("Extension ID")
-                        .font(.system(size: 12, weight: .medium))
-                        .foregroundColor(labelColor)
-                    Text(Bundle.main.bundleIdentifier ?? "Safari extension")
-                        .font(.system(size: 12, weight: .semibold))
-                        .foregroundColor(valueColor)
-                }
-                GridRow {
-                    Text("State")
-                        .font(.system(size: 12, weight: .medium))
-                        .foregroundColor(labelColor)
-                    Text(checking ? "Checking" : (isEnabled ? "Enabled" : "Disabled"))
-                        .font(.system(size: 12, weight: .semibold))
-                        .foregroundColor(isEnabled ? LiquidGlassTheme.success : .orange)
-                }
-                GridRow {
-                    Text("Videos Watched")
-                        .font(.system(size: 12, weight: .medium))
-                        .foregroundColor(labelColor)
-                    Text("\(videoCount)")
-                        .font(.system(size: 12, weight: .semibold))
-                        .foregroundColor(LiquidGlassTheme.success)
-                }
-                GridRow {
-                    Text("App Group")
-                        .font(.system(size: 12, weight: .medium))
-                        .foregroundColor(labelColor)
-                    Text(SharedState.isAppGroupAvailable ? "Connected" : "Unavailable")
-                        .font(.system(size: 12, weight: .semibold))
-                        .foregroundColor(SharedState.isAppGroupAvailable ? LiquidGlassTheme.success : .orange)
-                }
-            }
-        } else {
-            VStack(alignment: .leading, spacing: 6) {
-                HStack {
-                    Text("Extension ID")
-                        .font(.system(size: 12, weight: .medium))
-                        .foregroundColor(.white.opacity(0.65))
-                    Spacer()
-                    Text(Bundle.main.bundleIdentifier ?? "Safari extension")
-                        .font(.system(size: 12, weight: .semibold))
-                        .foregroundColor(.white)
-                }
-                HStack {
-                    Text("State")
-                        .font(.system(size: 12, weight: .medium))
-                        .foregroundColor(.white.opacity(0.65))
-                    Spacer()
-                    Text(checking ? "Checking" : (isEnabled ? "Enabled" : "Disabled"))
-                        .font(.system(size: 12, weight: .semibold))
-                        .foregroundColor(isEnabled ? LiquidGlassTheme.success : .orange)
-                }
-                HStack {
-                    Text("Videos Watched")
-                        .font(.system(size: 12, weight: .medium))
-                        .foregroundColor(.white.opacity(0.65))
-                    Spacer()
-                    Text("\(videoCount)")
-                        .font(.system(size: 12, weight: .semibold))
-                        .foregroundColor(LiquidGlassTheme.success)
-                }
-                HStack {
-                    Text("App Group")
-                        .font(.system(size: 12, weight: .medium))
-                        .foregroundColor(.white.opacity(0.65))
-                    Spacer()
-                    Text(SharedState.isAppGroupAvailable ? "Connected" : "Unavailable")
-                        .font(.system(size: 12, weight: .semibold))
-                        .foregroundColor(SharedState.isAppGroupAvailable ? LiquidGlassTheme.success : .orange)
-                }
-            }
+    private func diagnosticRow(label: String, value: String) -> some View {
+        HStack(alignment: .top) {
+            Text(label)
+                .font(.system(size: 12, weight: .medium))
+                .foregroundStyle(LiquidGlassTheme.adaptiveMutedText)
+            Spacer(minLength: 20)
+            Text(value)
+                .font(.system(size: 12, weight: .semibold))
+                .multilineTextAlignment(.trailing)
+                .foregroundStyle(LiquidGlassTheme.adaptiveText)
         }
+        .padding(.vertical, 2)
     }
 }

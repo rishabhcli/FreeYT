@@ -243,7 +243,8 @@ struct FreeYTTests {
                                     (url.path.contains("/watch") ||
                                      url.path.contains("/shorts/") ||
                                      url.path.contains("/embed/") ||
-                                     url.path.contains("/live/"))
+                                     url.path.contains("/live/") ||
+                                     url.host == "youtu.be")
 
                 #expect(isYouTubeVideo == testCase.shouldMatch,
                        "\(testCase.description): Match result should be \(testCase.shouldMatch)")
@@ -252,102 +253,42 @@ struct FreeYTTests {
     }
 }
 
-// MARK: - TintPalette Tests
+// MARK: - LiquidGlassTheme Tests
 
-struct TintPaletteTests {
+@MainActor
+struct LiquidGlassThemeTests {
 
-    @Test func testTintPaletteHasThreeCases() async throws {
-        let allCases = TintPalette.allCases
-        #expect(allCases.count == 3, "TintPalette should have exactly 3 cases")
+    @Test func testThemeSpacingTokensArePositive() async throws {
+        #expect(LiquidGlassTheme.cardRadius > 0)
+        #expect(LiquidGlassTheme.controlRadius > 0)
+        #expect(LiquidGlassTheme.pagePadding > 0)
+        #expect(LiquidGlassTheme.sectionSpacing > 0)
+        #expect(LiquidGlassTheme.contentSpacing > 0)
     }
 
-    @Test func testTintPaletteCaseNames() async throws {
-        let expectedCases: [TintPalette] = [.pinkCyan, .blueTeal, .violetMint]
-        let allCases = TintPalette.allCases
-        #expect(Set(allCases) == Set(expectedCases), "TintPalette should have pinkCyan, blueTeal, violetMint")
+    @Test func testThemeSemanticColorsExist() async throws {
+        let semanticDescriptions = [
+            LiquidGlassTheme.accent.description,
+            LiquidGlassTheme.accentStrong.description,
+            LiquidGlassTheme.warning.description,
+            LiquidGlassTheme.info.description,
+            LiquidGlassTheme.success.description
+        ]
+
+        #expect(semanticDescriptions.allSatisfy { !$0.isEmpty })
+        #expect(Set(semanticDescriptions).count >= 4, "Semantic colors should not collapse into one value")
     }
 
-    @Test func testPinkCyanPrimaryColor() async throws {
-        let tint = TintPalette.pinkCyan
-        let primary = tint.primary
-        // Primary should be a pinkish-red color
-        #expect(primary.description.contains("Color") || true, "Primary color should be a valid Color")
-    }
-
-    @Test func testPinkCyanSecondaryColor() async throws {
-        let tint = TintPalette.pinkCyan
-        let secondary = tint.secondary
-        #expect(secondary.description.contains("Color") || true, "Secondary color should be a valid Color")
-    }
-
-    @Test func testBlueTealPrimaryColor() async throws {
-        let tint = TintPalette.blueTeal
-        let primary = tint.primary
-        #expect(primary.description.contains("Color") || true, "Primary color should be a valid Color")
-    }
-
-    @Test func testBlueTealSecondaryColor() async throws {
-        let tint = TintPalette.blueTeal
-        let secondary = tint.secondary
-        #expect(secondary.description.contains("Color") || true, "Secondary color should be a valid Color")
-    }
-
-    @Test func testVioletMintPrimaryColor() async throws {
-        let tint = TintPalette.violetMint
-        let primary = tint.primary
-        #expect(primary.description.contains("Color") || true, "Primary color should be a valid Color")
-    }
-
-    @Test func testVioletMintSecondaryColor() async throws {
-        let tint = TintPalette.violetMint
-        let secondary = tint.secondary
-        #expect(secondary.description.contains("Color") || true, "Secondary color should be a valid Color")
-    }
-
-    @Test func testTintPaletteRawValues() async throws {
-        #expect(TintPalette.pinkCyan.rawValue == "pinkCyan")
-        #expect(TintPalette.blueTeal.rawValue == "blueTeal")
-        #expect(TintPalette.violetMint.rawValue == "violetMint")
-    }
-
-    @Test func testTintPaletteCodable() async throws {
-        let originalTint = TintPalette.pinkCyan
-
-        // Encode
-        let encoder = JSONEncoder()
-        let data = try encoder.encode(originalTint)
-
-        // Decode
-        let decoder = JSONDecoder()
-        let decodedTint = try decoder.decode(TintPalette.self, from: data)
-
-        #expect(decodedTint == originalTint, "TintPalette should be Codable")
-    }
-
-    @Test func testTintPaletteEquatable() async throws {
-        let tint1 = TintPalette.pinkCyan
-        let tint2 = TintPalette.pinkCyan
-        let tint3 = TintPalette.blueTeal
-
-        #expect(tint1 == tint2, "Same tints should be equal")
-        #expect(tint1 != tint3, "Different tints should not be equal")
-    }
-
-    @Test func testEachTintHasDistinctPrimaryColors() async throws {
-        let primaryColors = TintPalette.allCases.map { $0.primary.description }
-        let uniqueColors = Set(primaryColors)
-        // Note: Color descriptions may not be unique, but we test the concept
-        #expect(TintPalette.allCases.count == 3)
-    }
-
-    @Test func testEachTintHasDistinctSecondaryColors() async throws {
-        let secondaryColors = TintPalette.allCases.map { $0.secondary.description }
-        #expect(TintPalette.allCases.count == 3)
+    @Test func testThemeGradientsExist() async throws {
+        #expect(String(describing: LiquidGlassTheme.glassFill).contains("LinearGradient"))
+        #expect(String(describing: LiquidGlassTheme.darkGlassFill).contains("LinearGradient"))
+        #expect(String(describing: LiquidGlassTheme.heroGradient).contains("LinearGradient"))
     }
 }
 
 // MARK: - ExtensionIdentifiers Tests
 
+@MainActor
 struct ExtensionIdentifiersTests {
 
     @Test func testSafariExtensionBundleIDExists() async throws {
@@ -734,7 +675,6 @@ struct EdgeCaseTests {
             let url = URL(string: urlString)
             if let url = url {
                 // Even if URL parses, it shouldn't be a valid YouTube video URL
-                let isValidYouTube = url.host?.contains("youtube") == true || url.host == "youtu.be"
                 if urlString.contains("youtube") {
                     // FTP scheme should not be processed
                     #expect(url.scheme != "https" && url.scheme != "http" || true)
@@ -786,5 +726,138 @@ struct EdgeCaseTests {
 
         #expect(httpsURL?.scheme == "https")
         #expect(httpURL?.scheme == "http")
+    }
+}
+
+// MARK: - Dashboard Snapshot Tests
+
+@MainActor
+struct DashboardSnapshotTests {
+
+    @Test func testWeekCountAggregatesSevenDays() async throws {
+        let calendar = Calendar.current
+        var dailyCounts: [String: Int] = [:]
+
+        for offset in 0..<7 {
+            let date = calendar.date(byAdding: .day, value: -offset, to: Date())!
+            dailyCounts[DashboardSnapshot.dateKey(for: date)] = offset + 1
+        }
+
+        let snapshot = DashboardSnapshot(
+            enabled: true,
+            videoCount: 28,
+            dailyCounts: dailyCounts,
+            lastProtectedAt: nil,
+            recentActivity: [],
+            exceptions: [],
+            lastSyncState: .synced,
+            lastSyncTimestamp: nil
+        )
+
+        #expect(snapshot.weekCount == 28, "Week count should sum the last seven daily buckets")
+    }
+
+    @Test func testSortedExceptionsAreAlphabetized() async throws {
+        let snapshot = DashboardSnapshot(
+            enabled: true,
+            videoCount: 0,
+            dailyCounts: [:],
+            lastProtectedAt: nil,
+            recentActivity: [],
+            exceptions: ["music.youtube.com", "alpha.youtube.com", "beta.youtube.com"],
+            lastSyncState: .synced,
+            lastSyncTimestamp: nil
+        )
+
+        #expect(
+            snapshot.sortedExceptions == ["alpha.youtube.com", "beta.youtube.com", "music.youtube.com"],
+            "Exceptions should be sorted for UI presentation"
+        )
+    }
+}
+
+// MARK: - Shared Dashboard State Tests
+
+@MainActor
+@Suite(.serialized)
+struct SharedDashboardStateTests {
+
+    private func clearSharedState() {
+        guard let defaults = UserDefaults(suiteName: SharedState.suiteName) else { return }
+        for key in defaults.dictionaryRepresentation().keys {
+            defaults.removeObject(forKey: key)
+        }
+    }
+
+    @Test func testIncrementVideoCountUpdatesRecentActivityAndSyncState() async throws {
+        clearSharedState()
+        SharedState.resetVideoCount()
+
+        SharedState.incrementVideoCount(host: "www.youtube.com", kind: .shorts)
+        let snapshot = SharedState.dashboardSnapshot
+
+        #expect(snapshot.videoCount == 1)
+        #expect(snapshot.todayCount == 1)
+        #expect(snapshot.lastProtectedAt != nil)
+        #expect(snapshot.lastSyncState == .synced)
+        #expect(snapshot.recentActivity.count == 1)
+        #expect(snapshot.recentActivity.first?.host == "youtube.com")
+        #expect(snapshot.recentActivity.first?.kind == .shorts)
+    }
+
+    @Test func testExceptionDomainsRemainBackwardCompatibleAndNormalized() async throws {
+        clearSharedState()
+
+        SharedState.exceptionDomains = [" Music.YouTube.com ", "music.youtube.com", "M.YouTube.com "]
+        let snapshot = SharedState.dashboardSnapshot
+
+        #expect(snapshot.exceptions == ["m.youtube.com", "music.youtube.com"])
+        #expect(snapshot.sortedExceptions == ["m.youtube.com", "music.youtube.com"])
+    }
+
+    @Test func testLegacyStorageStillProducesValidDashboardSnapshot() async throws {
+        clearSharedState()
+        let defaults = try #require(UserDefaults(suiteName: SharedState.suiteName))
+        defaults.set(false, forKey: "extensionEnabled")
+        defaults.set(9, forKey: "videoWatchCount")
+        defaults.removeObject(forKey: "recentActivity")
+        defaults.removeObject(forKey: "exceptionDomains")
+        defaults.synchronize()
+
+        let snapshot = SharedState.dashboardSnapshot
+
+        #expect(snapshot.enabled == false)
+        #expect(snapshot.videoCount == 9)
+        #expect(snapshot.exceptions.isEmpty)
+        #expect(snapshot.recentActivity.isEmpty)
+    }
+
+    @Test func testMirrorExtensionSnapshotPreservesActivityAndSyncMetadata() async throws {
+        clearSharedState()
+        let timestamp = Calendar.current.date(byAdding: .hour, value: -1, to: Date())!
+        let dailyKey = DashboardSnapshot.dateKey(for: timestamp)
+        let activity = RedirectActivity(host: "music.youtube.com", kind: .shortLink, timestamp: timestamp)
+
+        SharedState.mirrorExtensionSnapshot(
+            enabled: true,
+            videoCount: 4,
+            dailyCounts: [dailyKey: 4],
+            recentActivity: [activity],
+            exceptions: ["music.youtube.com"],
+            lastProtectedAt: timestamp,
+            lastSyncState: .pending,
+            lastSyncTimestamp: timestamp
+        )
+
+        let snapshot = SharedState.dashboardSnapshot
+
+        #expect(snapshot.videoCount == 4)
+        #expect(snapshot.dailyCounts[dailyKey] == 4)
+        #expect(snapshot.lastProtectedAt == timestamp)
+        #expect(snapshot.lastSyncState == .pending)
+        #expect(snapshot.lastSyncTimestamp == timestamp)
+        #expect(snapshot.recentActivity.first?.host == "music.youtube.com")
+        #expect(snapshot.recentActivity.first?.kind == .shortLink)
+        #expect(snapshot.exceptions == ["music.youtube.com"])
     }
 }

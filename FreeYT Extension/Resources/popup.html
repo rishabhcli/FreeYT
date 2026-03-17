@@ -7,67 +7,98 @@
     <link rel="stylesheet" href="popup.css" />
   </head>
   <body class="shell">
-    <div class="panel">
-      <header class="header" role="banner">
-        <div class="header-left">
-          <img src="images/icon-48.png" alt="" width="28" height="28" class="app-icon" />
-          <div class="header-text">
-            <h1 class="app-name">FreeYT</h1>
-            <p class="header-subtitle">PRIVACY &middot; YOUTUBE.COM</p>
+    <main class="popup">
+      <section class="hero-card">
+        <div class="hero-top">
+          <div class="brand">
+            <img src="images/icon-48.png" alt="" width="32" height="32" class="app-icon" />
+            <div>
+              <p class="eyebrow">Protect YouTube privacy</p>
+              <h1 id="summaryTitle" class="title">Protection is active</h1>
+            </div>
           </div>
-        </div>
-        <span id="statusPill" class="status-badge" role="status" aria-live="polite">Active</span>
-      </header>
 
-      <main class="actions" role="main">
-        <div class="action-row" id="toggleRow">
-          <span class="action-icon" aria-hidden="true">&#x1F6E1;&#xFE0F;</span>
-          <div class="action-text">
-            <p class="action-title" id="statusText">Protection Enabled</p>
-            <p class="action-subtitle" id="statusDetail">Redirecting to youtube-nocookie.com</p>
-          </div>
-          <label class="switch" aria-label="Toggle protection">
+          <label class="switch" aria-label="Toggle FreeYT protection">
             <input type="checkbox" id="enabledToggle" role="switch" aria-checked="true" />
             <span class="slider"></span>
           </label>
         </div>
 
-        <div class="action-row clickable" id="allowlistRow">
-          <span class="action-icon" aria-hidden="true">&#x1F4CB;</span>
-          <div class="action-text">
-            <p class="action-title">Manage Allowlist</p>
-            <p class="action-subtitle">Domains that bypass redirect <span id="allowlistCount"></span></p>
+        <p id="summaryDetail" class="summary-detail">
+          YouTube links are routing through privacy-enhanced embeds.
+        </p>
+
+        <div class="pill-row">
+          <span id="statusPill" class="pill accent">Active</span>
+          <span id="syncPill" class="pill">Synced</span>
+          <span id="currentSitePill" class="pill subtle">No YouTube tab</span>
+        </div>
+      </section>
+
+      <section class="stats-card">
+        <div class="stat">
+          <span id="todayCount" class="stat-value">0</span>
+          <span class="stat-label">Today</span>
+        </div>
+        <div class="stat">
+          <span id="weekCount" class="stat-value">0</span>
+          <span class="stat-label">This Week</span>
+        </div>
+        <div class="stat">
+          <span id="videoCount" class="stat-value">0</span>
+          <span class="stat-label">All Time</span>
+        </div>
+      </section>
+
+      <section class="action-card">
+        <div class="card-header">
+          <div>
+            <h2>Current site</h2>
+            <p id="currentSiteDetail">Open a YouTube tab to add a quick exception.</p>
           </div>
-          <span class="action-chevron" aria-hidden="true">&#x203A;</span>
+          <button type="button" id="currentSiteButton" class="action-button primary">
+            Bypass this site
+          </button>
         </div>
 
-        <div class="action-row clickable" id="refreshRow">
-          <span class="action-icon" aria-hidden="true">&#x1F504;</span>
-          <div class="action-text">
-            <p class="action-title">Refresh State</p>
-            <p class="action-subtitle">Sync with Safari</p>
+        <div class="action-grid">
+          <button
+            type="button"
+            id="exceptionsButton"
+            class="action-button secondary"
+            aria-controls="exceptionsPanel"
+            aria-expanded="false"
+          >Manage exceptions</button>
+          <button type="button" id="dashboardButton" class="action-button secondary">Open FreeYT</button>
+          <button type="button" id="refreshButton" class="action-button ghost">Refresh</button>
+        </div>
+      </section>
+
+      <section id="exceptionsPanel" class="exceptions-card" hidden>
+        <div class="card-header">
+          <div>
+            <h2>Trusted exceptions</h2>
+            <p>Sites that should stay on YouTube instead of routing through embeds.</p>
           </div>
-          <span class="action-chevron" aria-hidden="true">&#x203A;</span>
+          <span id="exceptionsCount" class="pill subtle">0 saved</span>
         </div>
-      </main>
 
-      <div class="allowlist-panel" id="allowlistPanel" hidden>
-        <div class="allowlist-input-row">
-          <input type="text" id="allowlistInput" class="allowlist-input" placeholder="e.g. music.youtube.com" aria-label="Domain to allowlist" />
-          <button type="button" id="allowlistAdd" class="btn-add">Add</button>
+        <div class="input-row">
+          <input
+            type="text"
+            id="exceptionInput"
+            class="domain-input"
+            placeholder="music.youtube.com"
+            aria-label="Domain to add to Exceptions"
+          />
+          <button type="button" id="exceptionAdd" class="action-button primary compact">Add</button>
         </div>
-        <ul id="allowlistEntries" class="allowlist-list" aria-label="Allowlisted domains"></ul>
-      </div>
 
-      <footer class="stats-footer" role="contentinfo">
-        <div class="stats-row">
-          <div class="stat"><span id="todayCount" class="stat-value">0</span><span class="stat-label">TODAY</span></div>
-          <div class="stat"><span id="weekCount" class="stat-value">0</span><span class="stat-label">THIS WEEK</span></div>
-          <div class="stat"><span id="videoCount" class="stat-value">0</span><span class="stat-label">ALL TIME</span></div>
-        </div>
-      </footer>
-    </div>
+        <ul id="exceptionsList" class="exception-list" aria-label="Trusted exceptions"></ul>
+      </section>
+    </main>
 
+    <div id="toast" class="toast" hidden role="status" aria-live="polite"></div>
     <script src="popup.js"></script>
   </body>
 </html>

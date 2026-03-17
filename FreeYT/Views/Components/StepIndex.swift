@@ -9,7 +9,7 @@ struct StepIndex: View {
 
     @ViewBuilder
     private var stepIndexContent: some View {
-        if #available(iOS 26.0, *) {
+        if #available(iOS 26.0, macOS 26.0, *) {
             Text("\(number)")
                 .font(.system(size: 13, weight: .bold))
                 .foregroundColor(LiquidGlassTheme.adaptiveText)

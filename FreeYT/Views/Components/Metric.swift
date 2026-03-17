@@ -17,7 +17,7 @@ struct Metric: View {
 
     @ViewBuilder
     private var metricContent: some View {
-        if #available(iOS 26.0, *) {
+        if #available(iOS 26.0, macOS 26.0, *) {
             VStack(alignment: .leading, spacing: 4) {
                 Text(label.uppercased())
                     .font(.system(size: 11, weight: .bold))
@@ -27,9 +27,11 @@ struct Metric: View {
                     .font(.system(size: 14, weight: .semibold))
                     .foregroundColor(foregroundColor)
             }
-            .padding(12)
-            .frame(maxWidth: .infinity, alignment: .leading)
-            .glassEffect(.regular, in: .rect(cornerRadius: 14))
+            .glassCard(
+                radius: 14,
+                tint: foregroundColor.opacity(0.12),
+                padding: 12
+            )
         } else {
             VStack(alignment: .leading, spacing: 4) {
                 Text(label.uppercased())

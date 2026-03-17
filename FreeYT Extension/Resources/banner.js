@@ -28,10 +28,10 @@
                 <path d="M8 1L1 14h14L8 1z" fill="none" stroke="#22c55e" stroke-width="1.5"/>
                 <path d="M8 6v4M8 11.5v.5" stroke="#22c55e" stroke-width="1.5" stroke-linecap="round"/>
             </svg>
-            Redirected by FreeYT — no tracking cookies on this page
+            Protected by FreeYT — this page is using YouTube's privacy-enhanced embed
         </span>
-        <button class="freeyt-banner-close" aria-label="Dismiss" title="Dismiss">&times;</button>
-        <button class="freeyt-banner-stop" aria-label="Don't show again" title="Don't show again">Don't show</button>
+        <button class="freeyt-banner-close" aria-label="Hide" title="Hide">&times;</button>
+        <button class="freeyt-banner-stop" aria-label="Always hide" title="Always hide">Always hide</button>
     `;
 
     // Inject styles

@@ -2,49 +2,57 @@ import SwiftUI
 
 struct OnboardingPage: View {
     let icon: String
+    let eyebrow: String
     let title: String
     let description: String
-    var ctaTitle: String? = nil
-    var ctaAction: (() -> Void)? = nil
+    let highlights: [String]
 
     var body: some View {
-        VStack(spacing: 24) {
-            Spacer()
+        VStack(spacing: 26) {
+            ZStack {
+                Circle()
+                    .fill(LiquidGlassTheme.accent.opacity(0.14))
+                    .frame(width: 88, height: 88)
 
-            Image(systemName: icon)
-                .font(.system(size: 64, weight: .light))
-                .foregroundColor(LiquidGlassTheme.success)
-
-            Text(title)
-                .font(.system(size: 28, weight: .bold, design: .rounded))
-                .foregroundColor(LiquidGlassTheme.adaptiveText)
-                .multilineTextAlignment(.center)
-
-            Text(description)
-                .font(.system(size: 16, weight: .medium))
-                .foregroundColor(LiquidGlassTheme.adaptiveSecondaryText)
-                .multilineTextAlignment(.center)
-                .lineSpacing(4)
-                .padding(.horizontal, 32)
-
-            if let ctaTitle, let ctaAction {
-                Button(action: ctaAction) {
-                    Text(ctaTitle)
-                        .font(.system(size: 17, weight: .semibold))
-                        .foregroundColor(.white)
-                        .padding(.horizontal, 32)
-                        .padding(.vertical, 14)
-                        .background(
-                            Capsule()
-                                .fill(LiquidGlassTheme.success)
-                        )
-                }
-                .padding(.top, 8)
+                Image(systemName: icon)
+                    .font(.system(size: 38, weight: .semibold))
+                    .foregroundStyle(LiquidGlassTheme.accentStrong)
             }
 
-            Spacer()
-            Spacer()
+            VStack(spacing: 10) {
+                Text(eyebrow.uppercased())
+                    .font(.system(size: 12, weight: .bold))
+                    .tracking(1.0)
+                    .foregroundStyle(LiquidGlassTheme.accentStrong)
+
+                Text(title)
+                    .font(.system(size: 30, weight: .bold, design: .rounded))
+                    .multilineTextAlignment(.center)
+                    .foregroundStyle(LiquidGlassTheme.adaptiveText)
+
+                Text(description)
+                    .font(.system(size: 16, weight: .medium))
+                    .multilineTextAlignment(.center)
+                    .foregroundStyle(LiquidGlassTheme.adaptiveSecondaryText)
+                    .lineSpacing(4)
+            }
+
+            VStack(spacing: 10) {
+                ForEach(highlights, id: \.self) { item in
+                    HStack(spacing: 10) {
+                        Image(systemName: "checkmark.circle.fill")
+                            .foregroundStyle(LiquidGlassTheme.accentStrong)
+                        Text(item)
+                            .font(.system(size: 14, weight: .medium))
+                            .foregroundStyle(LiquidGlassTheme.adaptiveText)
+                        Spacer()
+                    }
+                    .glassCard(radius: 16, tint: LiquidGlassTheme.accent.opacity(0.08), padding: 12)
+                }
+            }
         }
         .padding(24)
+        .frame(maxWidth: 520)
+        .glassCard()
     }
 }

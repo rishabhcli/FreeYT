@@ -11,9 +11,12 @@ import SwiftUI
 
 /// UIHostingController to bridge SwiftUI LiquidGlassView with UIKit app lifecycle
 final class LiquidGlassHostingController: UIHostingController<LiquidGlassView> {
+    private let store: DashboardStore
 
-    init() {
-        super.init(rootView: LiquidGlassView())
+    @MainActor
+    init(store: DashboardStore) {
+        self.store = store
+        super.init(rootView: LiquidGlassView(store: store))
         setupAppearance()
     }
 
@@ -22,33 +25,16 @@ final class LiquidGlassHostingController: UIHostingController<LiquidGlassView> {
     }
 
     private func setupAppearance() {
-        if #available(iOS 26.0, *) {
-            // Let system manage background and navigation chrome for Liquid Glass
-            view.backgroundColor = .systemBackground
-        } else {
-            // Hide navigation bar for seamless glass effect on older iOS
-            navigationController?.navigationBar.isHidden = true
-            // Force dark mode for optimal glass effect visibility
-            overrideUserInterfaceStyle = .dark
-            view.backgroundColor = .clear
-        }
+        view.backgroundColor = .clear
+        view.isOpaque = false
     }
 
     override func viewWillAppear(_ animated: Bool) {
         super.viewWillAppear(animated)
-
-        if #available(iOS 26.0, *) {
-            // NavigationSplitView handles its own nav bar
-        } else {
-            navigationController?.setNavigationBarHidden(true, animated: animated)
-        }
+        store.refresh()
     }
 
     override var preferredStatusBarStyle: UIStatusBarStyle {
-        if #available(iOS 26.0, *) {
-            return .default
-        } else {
-            return .lightContent
-        }
+        .default
     }
 }

@@ -1,394 +1,568 @@
-// FreeYT Background Service Worker
-// Manages declarativeNetRequest rules for YouTube → youtube-nocookie.com redirects
-// Tracks ad-free video views and syncs state with native app via App Groups
+// FreeYT background service worker
+// Maintains dashboard state, recent activity, exception rules, and host-app sync.
 
 const STORAGE_KEY = 'enabled';
 const VIDEO_COUNT_KEY = 'videoCount';
 const ALLOWLIST_KEY = 'allowlist';
+const RECENT_ACTIVITY_KEY = 'recentActivity';
+const LAST_PROTECTED_AT_KEY = 'lastProtectedAt';
+const LAST_SYNC_TIMESTAMP_KEY = 'dashboardSyncTimestamp';
+const LAST_SYNC_STATE_KEY = 'lastSyncState';
+
 const RULESET_ID = 'ruleset_1';
 const DAILY_COUNT_PREFIX = 'count_';
+const ALLOWLIST_RULE_BASE = 1000;
+const MAX_RECENT_ACTIVITY = 12;
 
-function todayKey() {
-  const d = new Date();
-  return DAILY_COUNT_PREFIX + d.toISOString().slice(0, 10);
+const SYNC_STATES = {
+  synced: 'Synced',
+  pending: 'Pending Safari sync',
+  unavailable: 'Safari unavailable',
+  issue: 'Sync issue'
+};
+
+function nowIso() {
+  return new Date().toISOString();
 }
 
-// Initialize extension state on install
-chrome.runtime.onInstalled.addListener(async () => {
-  console.log('[FreeYT] Extension installed');
+function todayKey(date = new Date()) {
+  return DAILY_COUNT_PREFIX + date.toISOString().slice(0, 10);
+}
 
-  // Set default state to enabled
-  const result = await chrome.storage.local.get([STORAGE_KEY, VIDEO_COUNT_KEY]);
-  if (result[STORAGE_KEY] === undefined) {
-    await chrome.storage.local.set({ [STORAGE_KEY]: true, [VIDEO_COUNT_KEY]: 0 });
-    await enableRedirects();
-    console.log('[FreeYT] Initialized as enabled with video count 0');
-  } else {
-    // Restore previous state
-    if (result[STORAGE_KEY]) {
-      await enableRedirects();
-    } else {
-      await disableRedirects();
-    }
-    console.log('[FreeYT] Restored state:', result[STORAGE_KEY] ? 'enabled' : 'disabled');
+function normalizeDomain(domain) {
+  return String(domain || '').trim().toLowerCase();
+}
+
+function displayHost(hostname) {
+  return normalizeDomain(hostname).replace(/^www\./, '').replace(/^m\./, '');
+}
+
+function classifyURL(url) {
+  if (url.includes('/shorts/')) return 'shorts';
+  if (url.includes('/live/')) return 'live';
+  if (url.includes('/embed/')) return 'embed';
+  if (url.includes('youtu.be/')) return 'shortLink';
+  if (url.includes('/v/')) return 'legacy';
+  if (url.includes('/watch')) return 'watch';
+  return 'unknown';
+}
+
+function extractHost(url) {
+  try {
+    const hostname = new URL(url).hostname;
+    return hostname.includes('youtube-nocookie.com') ? 'youtube.com' : hostname;
+  } catch {
+    return 'youtube.com';
+  }
+}
+
+function toUnixSeconds(value) {
+  if (!value) return null;
+  const ms = typeof value === 'number' ? value : Date.parse(value);
+  if (!Number.isFinite(ms)) return null;
+  return Math.floor(ms / 1000);
+}
+
+function toIsoString(value) {
+  if (!value) return null;
+  if (typeof value === 'string') return value;
+  if (typeof value === 'number') return new Date(value * 1000).toISOString();
+  return null;
+}
+
+function createActivity(url, timestampMs = Date.now()) {
+  const host = displayHost(extractHost(url));
+  const seconds = Math.floor(timestampMs / 1000);
+  return {
+    id: `${host}-${seconds}`,
+    host,
+    kind: classifyURL(url),
+    timestamp: seconds
+  };
+}
+
+function isNativeMessagingAvailable() {
+  return typeof browser !== 'undefined' && typeof browser.runtime?.sendNativeMessage === 'function';
+}
+
+async function getEnabled() {
+  const result = await chrome.storage.local.get(STORAGE_KEY);
+  return result[STORAGE_KEY] ?? true;
+}
+
+async function getVideoCount() {
+  const result = await chrome.storage.local.get(VIDEO_COUNT_KEY);
+  return result[VIDEO_COUNT_KEY] ?? 0;
+}
+
+async function getAllowlist() {
+  const result = await chrome.storage.local.get(ALLOWLIST_KEY);
+  return result[ALLOWLIST_KEY] ?? [];
+}
+
+async function getRecentActivity() {
+  const result = await chrome.storage.local.get(RECENT_ACTIVITY_KEY);
+  return result[RECENT_ACTIVITY_KEY] ?? [];
+}
+
+async function getDailyStats(days = 7) {
+  const keys = [];
+  for (let i = 0; i < days; i += 1) {
+    const date = new Date();
+    date.setDate(date.getDate() - i);
+    keys.push(DAILY_COUNT_PREFIX + date.toISOString().slice(0, 10));
   }
 
-  // Clean up daily count keys older than 90 days
-  const allKeys = await chrome.storage.local.get(null);
-  const cutoff = new Date();
-  cutoff.setDate(cutoff.getDate() - 90);
-  const cutoffStr = cutoff.toISOString().slice(0, 10);
-  const oldKeys = Object.keys(allKeys).filter(k => k.startsWith(DAILY_COUNT_PREFIX) && k.slice(DAILY_COUNT_PREFIX.length) < cutoffStr);
-  if (oldKeys.length > 0) {
-    await chrome.storage.local.remove(oldKeys);
-    console.log('[FreeYT] Cleaned up', oldKeys.length, 'old daily count keys');
+  const result = await chrome.storage.local.get(keys);
+  const stats = {};
+  keys.forEach((key) => {
+    stats[key.slice(DAILY_COUNT_PREFIX.length)] = result[key] ?? 0;
+  });
+  return stats;
+}
+
+async function getCurrentSiteInfo() {
+  if (!chrome.tabs?.query) {
+    return null;
   }
 
-  // Sync with native app on install
-  await syncWithNativeApp();
-});
+  try {
+    const tabs = await chrome.tabs.query({ active: true, currentWindow: true });
+    const tab = tabs?.[0];
+    if (!tab?.url) return null;
 
-// Safari can unload the service worker; re-sync rules whenever it wakes
-chrome.runtime.onStartup?.addListener(() => {
-  syncRulesToStorage().catch(err => console.error('[FreeYT] Failed to sync rules on startup:', err));
-  syncWithNativeApp().catch(err => console.log('[FreeYT] Native sync skipped on startup'));
-});
+    const url = new URL(tab.url);
+    const domain = normalizeDomain(url.hostname);
+    const allowlist = await getAllowlist();
+    const supported = /youtube\.com$|youtu\.be$|youtube-nocookie\.com$/.test(domain);
 
-// Flush state before Safari unloads the service worker
-chrome.runtime.onSuspend?.addListener(() => {
-  console.log('[FreeYT] Service worker suspending at', new Date().toISOString());
-});
+    return {
+      domain,
+      displayDomain: displayHost(domain),
+      isException: allowlist.includes(domain),
+      isSupportedDomain: supported
+    };
+  } catch (error) {
+    console.log('[FreeYT] Could not read active tab for current site info');
+    return null;
+  }
+}
 
-// Enable redirect rules
+async function updateLocalSyncState(state, timestamp = nowIso()) {
+  await chrome.storage.local.set({
+    [LAST_SYNC_STATE_KEY]: state,
+    [LAST_SYNC_TIMESTAMP_KEY]: timestamp
+  });
+}
+
+async function buildDashboardState() {
+  const [enabled, videoCount, exceptions, recentActivity, dailyCounts, currentSite, storage] = await Promise.all([
+    getEnabled(),
+    getVideoCount(),
+    getAllowlist(),
+    getRecentActivity(),
+    getDailyStats(7),
+    getCurrentSiteInfo(),
+    chrome.storage.local.get([LAST_PROTECTED_AT_KEY, LAST_SYNC_TIMESTAMP_KEY, LAST_SYNC_STATE_KEY])
+  ]);
+
+  return {
+    enabled,
+    videoCount,
+    dailyCounts,
+    recentActivity,
+    exceptions,
+    allowlist: exceptions,
+    lastProtectedAt: toUnixSeconds(storage[LAST_PROTECTED_AT_KEY]),
+    lastSyncTimestamp: toUnixSeconds(storage[LAST_SYNC_TIMESTAMP_KEY]),
+    lastSyncState: storage[LAST_SYNC_STATE_KEY] ?? SYNC_STATES.unavailable,
+    currentSite,
+    todayCount: Object.values(dailyCounts)[0] ?? 0,
+    weekCount: Object.values(dailyCounts).reduce((sum, value) => sum + value, 0)
+  };
+}
+
+async function pushDashboardStateToNative(state) {
+  if (!isNativeMessagingAvailable()) {
+    await updateLocalSyncState(SYNC_STATES.unavailable);
+    return false;
+  }
+
+  const snapshot = state ?? await buildDashboardState();
+  try {
+    await browser.runtime.sendNativeMessage('com.freeyt.app.extension', {
+      action: 'syncDashboardState',
+      enabled: snapshot.enabled,
+      videoCount: snapshot.videoCount,
+      dailyCounts: snapshot.dailyCounts,
+      recentActivity: snapshot.recentActivity,
+      exceptions: snapshot.exceptions,
+      lastProtectedAt: snapshot.lastProtectedAt,
+      lastSyncTimestamp: snapshot.lastSyncTimestamp,
+      lastSyncState: SYNC_STATES.synced
+    });
+    await updateLocalSyncState(SYNC_STATES.synced);
+    return true;
+  } catch (error) {
+    console.log('[FreeYT] Native sync skipped:', error?.message || 'unavailable');
+    await updateLocalSyncState(SYNC_STATES.unavailable);
+    return false;
+  }
+}
+
 async function enableRedirects() {
   try {
     await chrome.declarativeNetRequest.updateEnabledRulesets({
       enableRulesetIds: [RULESET_ID]
     });
-    console.log('[FreeYT] Redirect rules enabled');
   } catch (error) {
     console.error('[FreeYT] Failed to enable redirect rules:', error);
   }
 }
 
-// Disable redirect rules
 async function disableRedirects() {
   try {
     await chrome.declarativeNetRequest.updateEnabledRulesets({
       disableRulesetIds: [RULESET_ID]
     });
-    console.log('[FreeYT] Redirect rules disabled');
   } catch (error) {
     console.error('[FreeYT] Failed to disable redirect rules:', error);
   }
 }
 
-// Ensure the enabled ruleset matches the saved toggle state (idempotent)
 async function syncRulesToStorage() {
-  const [storageResult, enabledRulesets] = await Promise.all([
-    chrome.storage.local.get(STORAGE_KEY),
+  const [enabled, enabledRulesets] = await Promise.all([
+    getEnabled(),
     chrome.declarativeNetRequest.getEnabledRulesets()
   ]);
-  const shouldBeEnabled = storageResult[STORAGE_KEY] ?? true;
-  const isEnabled = enabledRulesets.includes(RULESET_ID);
 
-  if (shouldBeEnabled && !isEnabled) {
+  const isEnabled = enabledRulesets.includes(RULESET_ID);
+  if (enabled && !isEnabled) {
     await enableRedirects();
-  } else if (!shouldBeEnabled && isEnabled) {
+  } else if (!enabled && isEnabled) {
     await disableRedirects();
   }
-  console.log('[FreeYT] Synced rules (was:', isEnabled, 'should be:', shouldBeEnabled, ')');
 }
 
-// ============================================================================
-// VIDEO COUNT TRACKING
-// ============================================================================
-
-// Get current video count from local storage
-async function getVideoCount() {
-  const result = await chrome.storage.local.get(VIDEO_COUNT_KEY);
-  return result[VIDEO_COUNT_KEY] || 0;
-}
-
-// Increment video count in both local storage and native app
-async function incrementVideoCount() {
-  // Update total count
-  const currentCount = await getVideoCount();
-  const newCount = currentCount + 1;
-  await chrome.storage.local.set({ [VIDEO_COUNT_KEY]: newCount });
-
-  // Update daily count
-  const dayKey = todayKey();
-  const dayResult = await chrome.storage.local.get(dayKey);
-  await chrome.storage.local.set({ [dayKey]: (dayResult[dayKey] || 0) + 1 });
-  console.log('[FreeYT] Video count incremented to:', newCount);
-
-  // Sync to native app via messaging (best-effort)
-  try {
-    await browser.runtime.sendNativeMessage('com.freeyt.app.extension', {
-      action: 'incrementCount'
-    });
-    console.log('[FreeYT] Native app notified of video count increment');
-  } catch (e) {
-    // Native messaging may not be available or app may not be running
-    console.log('[FreeYT] Native sync skipped (app not running or unavailable)');
-  }
-
-  return newCount;
-}
-
-// Track redirects using declarativeNetRequest feedback API
-// This listener fires whenever a redirect rule is applied
-if (chrome.declarativeNetRequest.onRuleMatchedDebug) {
-  chrome.declarativeNetRequest.onRuleMatchedDebug.addListener((info) => {
-    if (info.rule.rulesetId === RULESET_ID) {
-      incrementVideoCount();
-      console.log('[FreeYT] Redirect tracked, rule:', info.rule.ruleId, 'URL:', info.request?.url);
-    }
-  });
-  console.log('[FreeYT] Redirect tracking enabled via onRuleMatchedDebug');
-} else {
-  console.log('[FreeYT] onRuleMatchedDebug not available, tracking via web navigation');
-
-  // Fallback: Track navigations to youtube-nocookie.com as a proxy for redirects
-  if (chrome.webNavigation?.onCompleted) {
-    chrome.webNavigation.onCompleted.addListener((details) => {
-      if (details.frameId === 0 && details.url.includes('youtube-nocookie.com/embed/')) {
-        incrementVideoCount();
-        console.log('[FreeYT] Redirect tracked via navigation:', details.url);
-      }
-    }, { url: [{ hostContains: 'youtube-nocookie.com' }] });
-    console.log('[FreeYT] Redirect tracking enabled via webNavigation fallback');
-  }
-}
-
-// ============================================================================
-// NATIVE APP SYNC
-// ============================================================================
-
-// Sync state with native app via Safari's native messaging
-async function syncWithNativeApp() {
-  try {
-    const response = await browser.runtime.sendNativeMessage('com.freeyt.app.extension', {
-      action: 'getSharedState'
-    });
-
-    if (response?.enabled !== undefined) {
-      const currentResult = await chrome.storage.local.get(STORAGE_KEY);
-      const currentEnabled = currentResult[STORAGE_KEY] ?? true;
-
-      // Only update if different (avoid loops)
-      if (response.enabled !== currentEnabled) {
-        await chrome.storage.local.set({ [STORAGE_KEY]: response.enabled });
-        if (response.enabled) {
-          await enableRedirects();
-        } else {
-          await disableRedirects();
-        }
-        console.log('[FreeYT] Synced enabled state from native app:', response.enabled);
-      }
-    }
-
-    if (response?.videoCount !== undefined) {
-      const localCount = await getVideoCount();
-      // Use the higher count (in case either side has more recent data)
-      const maxCount = Math.max(localCount, response.videoCount);
-      if (maxCount !== localCount) {
-        await chrome.storage.local.set({ [VIDEO_COUNT_KEY]: maxCount });
-        console.log('[FreeYT] Synced video count from native app:', maxCount);
-      }
-    }
-
-    console.log('[FreeYT] Native app sync completed successfully');
-    return response;
-  } catch (e) {
-    console.log('[FreeYT] Native sync skipped:', e.message || 'unavailable');
-    return null;
-  }
-}
-
-// Notify native app when enabled state changes
-async function notifyNativeAppStateChange(enabled) {
-  try {
-    await browser.runtime.sendNativeMessage('com.freeyt.app.extension', {
-      action: 'setEnabled',
-      enabled: enabled
-    });
-    console.log('[FreeYT] Native app notified of state change:', enabled);
-  } catch (e) {
-    console.log('[FreeYT] Failed to notify native app:', e.message || 'unavailable');
-  }
-}
-
-// ============================================================================
-// ALLOWLIST RULES
-// ============================================================================
-
-// Dynamic rule IDs for allowlist start at 1000 to avoid conflicts with static rules
-const ALLOWLIST_RULE_BASE = 1000;
-
-// Update dynamic rules to allow specific domains to bypass redirects
 async function updateAllowlistRules(allowlist) {
   try {
-    // Remove all existing allowlist dynamic rules
     const existingRules = await chrome.declarativeNetRequest.getDynamicRules();
     const existingIds = existingRules
-      .filter(r => r.id >= ALLOWLIST_RULE_BASE)
-      .map(r => r.id);
+      .filter((rule) => rule.id >= ALLOWLIST_RULE_BASE)
+      .map((rule) => rule.id);
 
-    const addRules = allowlist.map((pattern, index) => ({
+    const addRules = allowlist.map((domain, index) => ({
       id: ALLOWLIST_RULE_BASE + index,
-      priority: 10, // Higher than redirect rules (priority 1)
+      priority: 10,
       action: { type: 'allowAllRequests' },
       condition: {
-        urlFilter: `*://${pattern}/*`,
+        urlFilter: `*://${domain}/*`,
         resourceTypes: ['main_frame']
       }
     }));
 
     await chrome.declarativeNetRequest.updateDynamicRules({
       removeRuleIds: existingIds,
-      addRules: addRules
+      addRules
     });
-    console.log('[FreeYT] Allowlist rules updated:', allowlist.length, 'patterns');
   } catch (error) {
-    console.error('[FreeYT] Failed to update allowlist rules:', error);
+    console.error('[FreeYT] Failed to update exception rules:', error);
   }
 }
 
-// Restore allowlist rules on startup
-async function restoreAllowlistRules() {
-  const result = await chrome.storage.local.get(ALLOWLIST_KEY);
-  const list = result[ALLOWLIST_KEY] || [];
-  if (list.length > 0) {
-    await updateAllowlistRules(list);
+async function setAllowlist(nextAllowlist, syncState = SYNC_STATES.synced) {
+  const normalized = Array.from(new Set(nextAllowlist.map(normalizeDomain))).filter(Boolean).sort();
+  const timestamp = nowIso();
+
+  await chrome.storage.local.set({
+    [ALLOWLIST_KEY]: normalized,
+    [LAST_SYNC_TIMESTAMP_KEY]: timestamp,
+    [LAST_SYNC_STATE_KEY]: syncState
+  });
+
+  await updateAllowlistRules(normalized);
+  await pushDashboardStateToNative(await buildDashboardState());
+  return normalized;
+}
+
+async function toggleCurrentSiteException() {
+  const currentSite = await getCurrentSiteInfo();
+  if (!currentSite?.domain || !currentSite.isSupportedDomain) {
+    return { success: false, error: 'No supported active site found.' };
+  }
+
+  const allowlist = await getAllowlist();
+  const next = currentSite.isException
+    ? allowlist.filter((domain) => domain !== currentSite.domain)
+    : [...allowlist, currentSite.domain];
+
+  const exceptions = await setAllowlist(next);
+  const refreshedSite = await getCurrentSiteInfo();
+
+  return {
+    success: true,
+    exceptions,
+    allowlist: exceptions,
+    currentSite: refreshedSite
+  };
+}
+
+async function applyNativeSnapshot(snapshot) {
+  const exceptions = Array.isArray(snapshot.exceptions) ? snapshot.exceptions.map(normalizeDomain).filter(Boolean) : [];
+  const recentActivity = Array.isArray(snapshot.recentActivity) ? snapshot.recentActivity.slice(0, MAX_RECENT_ACTIVITY) : [];
+  const enabled = snapshot.enabled ?? true;
+  const videoCount = snapshot.videoCount ?? 0;
+  const syncTimestampIso = toIsoString(snapshot.lastSyncTimestamp) ?? nowIso();
+  const syncState = snapshot.lastSyncState || SYNC_STATES.synced;
+  const dailyCounts = snapshot.dailyCounts && typeof snapshot.dailyCounts === 'object' ? snapshot.dailyCounts : {};
+
+  const existing = await chrome.storage.local.get(null);
+  const removeKeys = Object.keys(existing).filter((key) => key.startsWith(DAILY_COUNT_PREFIX));
+  if (removeKeys.length > 0) {
+    await chrome.storage.local.remove(removeKeys);
+  }
+
+  const dailyPayload = Object.fromEntries(
+    Object.entries(dailyCounts).map(([key, value]) => [`${DAILY_COUNT_PREFIX}${key}`, value])
+  );
+
+  await chrome.storage.local.set({
+    [STORAGE_KEY]: enabled,
+    [VIDEO_COUNT_KEY]: videoCount,
+    [ALLOWLIST_KEY]: exceptions,
+    [RECENT_ACTIVITY_KEY]: recentActivity,
+    [LAST_PROTECTED_AT_KEY]: toIsoString(snapshot.lastProtectedAt),
+    [LAST_SYNC_TIMESTAMP_KEY]: syncTimestampIso,
+    [LAST_SYNC_STATE_KEY]: syncState,
+    ...dailyPayload
+  });
+
+  await updateAllowlistRules(exceptions);
+  await syncRulesToStorage();
+}
+
+async function syncWithNativeApp() {
+  if (!isNativeMessagingAvailable()) {
+    await updateLocalSyncState(SYNC_STATES.unavailable);
+    return null;
+  }
+
+  try {
+    const nativeSnapshot = await browser.runtime.sendNativeMessage('com.freeyt.app.extension', {
+      action: 'getDashboardSnapshot'
+    });
+
+    const localSnapshot = await buildDashboardState();
+    const localTimestamp = (localSnapshot.lastSyncTimestamp ?? 0) * 1000;
+    const nativeTimestamp = (nativeSnapshot.lastSyncTimestamp ?? 0) * 1000;
+
+    if (nativeTimestamp > localTimestamp) {
+      await applyNativeSnapshot(nativeSnapshot);
+      await pushDashboardStateToNative(await buildDashboardState());
+      return buildDashboardState();
+    }
+
+    if (localTimestamp > nativeTimestamp) {
+      await pushDashboardStateToNative(localSnapshot);
+    } else {
+      await updateLocalSyncState(SYNC_STATES.synced);
+    }
+
+    return localSnapshot;
+  } catch (error) {
+    console.log('[FreeYT] Native sync skipped:', error?.message || 'unavailable');
+    await updateLocalSyncState(SYNC_STATES.unavailable);
+    return null;
   }
 }
 
-// ============================================================================
-// MESSAGE HANDLERS
-// ============================================================================
+async function recordRedirect(rawURL) {
+  const now = Date.now();
+  const timestamp = nowIso();
+  const dayKey = todayKey(new Date(now));
+  const [videoCount, recentActivity, existingDayCount] = await Promise.all([
+    getVideoCount(),
+    getRecentActivity(),
+    chrome.storage.local.get(dayKey)
+  ]);
 
-// Handle messages from popup
-chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
-  console.log('[FreeYT] Received message:', request);
+  const activity = createActivity(rawURL, now);
+  const nextRecentActivity = [
+    activity,
+    ...recentActivity.filter((item) => item.id !== activity.id)
+  ].slice(0, MAX_RECENT_ACTIVITY);
 
-  if (request.action === 'getState') {
-    // Return current enabled state and video count
-    Promise.all([
-      chrome.storage.local.get(STORAGE_KEY),
-      getVideoCount()
-    ]).then(([result, count]) => {
-      sendResponse({
-        enabled: result[STORAGE_KEY] ?? true,
-        videoCount: count
-      });
+  await chrome.storage.local.set({
+    [VIDEO_COUNT_KEY]: videoCount + 1,
+    [RECENT_ACTIVITY_KEY]: nextRecentActivity,
+    [LAST_PROTECTED_AT_KEY]: timestamp,
+    [LAST_SYNC_TIMESTAMP_KEY]: timestamp,
+    [LAST_SYNC_STATE_KEY]: SYNC_STATES.synced,
+    [dayKey]: (existingDayCount[dayKey] ?? 0) + 1
+  });
+
+  await pushDashboardStateToNative(await buildDashboardState());
+  return videoCount + 1;
+}
+
+async function initializeState() {
+  const result = await chrome.storage.local.get([STORAGE_KEY, VIDEO_COUNT_KEY, ALLOWLIST_KEY]);
+  if (result[STORAGE_KEY] === undefined) {
+    await chrome.storage.local.set({
+      [STORAGE_KEY]: true,
+      [VIDEO_COUNT_KEY]: 0,
+      [ALLOWLIST_KEY]: [],
+      [LAST_SYNC_STATE_KEY]: SYNC_STATES.pending,
+      [LAST_SYNC_TIMESTAMP_KEY]: nowIso()
     });
-    return true; // Keep channel open for async response
+    await enableRedirects();
   }
 
-  if (request.action === 'setState') {
-    // Update enabled state and toggle rules
-    const enabled = request.enabled;
-    chrome.storage.local.set({ [STORAGE_KEY]: enabled }).then(async () => {
-      if (enabled) {
-        await enableRedirects();
-      } else {
-        await disableRedirects();
-      }
-      // Notify native app of state change
-      await notifyNativeAppStateChange(enabled);
-      console.log('[FreeYT] State updated:', enabled ? 'enabled' : 'disabled');
-      sendResponse({ success: true });
-    });
-    return true; // Keep channel open for async response
-  }
+  await cleanupOldDailyStats();
+  await syncRulesToStorage();
+  await updateAllowlistRules(result[ALLOWLIST_KEY] ?? []);
+  await syncWithNativeApp();
+}
 
-  if (request.action === 'getVideoCount') {
-    getVideoCount().then(count => {
-      sendResponse({ count: count });
-    });
-    return true;
+async function cleanupOldDailyStats() {
+  const allKeys = await chrome.storage.local.get(null);
+  const cutoff = new Date();
+  cutoff.setDate(cutoff.getDate() - 90);
+  const cutoffString = cutoff.toISOString().slice(0, 10);
+  const oldKeys = Object.keys(allKeys).filter(
+    (key) => key.startsWith(DAILY_COUNT_PREFIX) && key.slice(DAILY_COUNT_PREFIX.length) < cutoffString
+  );
+  if (oldKeys.length > 0) {
+    await chrome.storage.local.remove(oldKeys);
   }
+}
 
-  if (request.action === 'getAllowlist') {
-    chrome.storage.local.get(ALLOWLIST_KEY).then(result => {
-      sendResponse({ allowlist: result[ALLOWLIST_KEY] || [] });
-    });
-    return true;
-  }
-
-  if (request.action === 'addToAllowlist') {
-    const pattern = request.pattern;
-    chrome.storage.local.get(ALLOWLIST_KEY).then(async result => {
-      const list = result[ALLOWLIST_KEY] || [];
-      if (!list.includes(pattern)) {
-        list.push(pattern);
-        await chrome.storage.local.set({ [ALLOWLIST_KEY]: list });
-        await updateAllowlistRules(list);
-      }
-      sendResponse({ success: true, allowlist: list });
-    });
-    return true;
-  }
-
-  if (request.action === 'removeFromAllowlist') {
-    const pattern = request.pattern;
-    chrome.storage.local.get(ALLOWLIST_KEY).then(async result => {
-      let list = result[ALLOWLIST_KEY] || [];
-      list = list.filter(p => p !== pattern);
-      await chrome.storage.local.set({ [ALLOWLIST_KEY]: list });
-      await updateAllowlistRules(list);
-      sendResponse({ success: true, allowlist: list });
-    });
-    return true;
-  }
-
-  if (request.action === 'getDailyStats') {
-    (async () => {
-      const days = 7;
-      const keys = [];
-      for (let i = 0; i < days; i++) {
-        const d = new Date();
-        d.setDate(d.getDate() - i);
-        keys.push(DAILY_COUNT_PREFIX + d.toISOString().slice(0, 10));
-      }
-      const result = await chrome.storage.local.get(keys);
-      const stats = {};
-      keys.forEach(k => { stats[k.slice(DAILY_COUNT_PREFIX.length)] = result[k] || 0; });
-      sendResponse({ stats });
-    })();
-    return true;
-  }
-
-  if (request.action === 'syncWithNative') {
-    syncWithNativeApp().then(response => {
-      sendResponse({ success: true, response: response });
-    }).catch(err => {
-      sendResponse({ success: false, error: err.message });
-    });
-    return true;
-  }
-
-  return false;
+chrome.runtime.onInstalled.addListener(async () => {
+  console.log('[FreeYT] Extension installed');
+  await initializeState();
 });
 
-// Listen for storage changes (in case user modifies from another context)
+chrome.runtime.onStartup?.addListener(() => {
+  initializeState().catch((error) => console.error('[FreeYT] Startup init failed:', error));
+});
+
+chrome.runtime.onSuspend?.addListener(() => {
+  console.log('[FreeYT] Service worker suspending at', nowIso());
+});
+
+if (chrome.declarativeNetRequest.onRuleMatchedDebug) {
+  chrome.declarativeNetRequest.onRuleMatchedDebug.addListener((info) => {
+    if (info.rule.rulesetId === RULESET_ID) {
+      recordRedirect(info.request?.url || 'https://youtube.com/watch')
+        .catch((error) => console.error('[FreeYT] Failed to record redirect:', error));
+    }
+  });
+} else if (chrome.webNavigation?.onCompleted) {
+  chrome.webNavigation.onCompleted.addListener((details) => {
+    if (details.frameId === 0 && details.url.includes('youtube-nocookie.com/embed/')) {
+      recordRedirect(details.url)
+        .catch((error) => console.error('[FreeYT] Failed to record fallback redirect:', error));
+    }
+  }, { url: [{ hostContains: 'youtube-nocookie.com' }] });
+}
+
+chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
+  (async () => {
+    switch (request.action) {
+      case 'getDashboardState':
+        sendResponse(await buildDashboardState());
+        return;
+
+      case 'getState': {
+        const state = await buildDashboardState();
+        sendResponse({ enabled: state.enabled, videoCount: state.videoCount });
+        return;
+      }
+
+      case 'setState': {
+        const enabled = request.enabled ?? true;
+        await chrome.storage.local.set({
+          [STORAGE_KEY]: enabled,
+          [LAST_SYNC_TIMESTAMP_KEY]: nowIso(),
+          [LAST_SYNC_STATE_KEY]: SYNC_STATES.synced
+        });
+        await syncRulesToStorage();
+        await pushDashboardStateToNative(await buildDashboardState());
+        sendResponse({ success: true });
+        return;
+      }
+
+      case 'getAllowlist': {
+        const allowlist = await getAllowlist();
+        sendResponse({ allowlist, exceptions: allowlist });
+        return;
+      }
+
+      case 'addToAllowlist': {
+        const allowlist = await getAllowlist();
+        const next = [...allowlist, request.pattern];
+        const exceptions = await setAllowlist(next);
+        sendResponse({ success: true, allowlist: exceptions, exceptions });
+        return;
+      }
+
+      case 'removeFromAllowlist': {
+        const allowlist = await getAllowlist();
+        const next = allowlist.filter((domain) => domain !== request.pattern);
+        const exceptions = await setAllowlist(next);
+        sendResponse({ success: true, allowlist: exceptions, exceptions });
+        return;
+      }
+
+      case 'toggleCurrentSiteException':
+        sendResponse(await toggleCurrentSiteException());
+        return;
+
+      case 'getDailyStats':
+        sendResponse({ stats: await getDailyStats(7) });
+        return;
+
+      case 'getRecentActivity':
+        sendResponse({ recentActivity: await getRecentActivity() });
+        return;
+
+      case 'syncWithNative':
+        await syncWithNativeApp();
+        sendResponse({ success: true, state: await buildDashboardState() });
+        return;
+
+      case 'openDashboard':
+        if (!isNativeMessagingAvailable()) {
+          sendResponse({ success: false, error: 'Native messaging unavailable.' });
+          return;
+        }
+        try {
+          const response = await browser.runtime.sendNativeMessage('com.freeyt.app.extension', {
+            action: 'openDashboard',
+            section: request.section || 'dashboard'
+          });
+          sendResponse(response);
+        } catch (error) {
+          sendResponse({ success: false, error: error?.message || 'Could not open FreeYT.' });
+        }
+        return;
+
+      default:
+        sendResponse({ success: false, error: `Unknown action: ${request.action}` });
+    }
+  })().catch((error) => {
+    console.error('[FreeYT] Message handler failed:', error);
+    sendResponse({ success: false, error: error?.message || 'Unexpected background failure.' });
+  });
+
+  return true;
+});
+
 chrome.storage.onChanged.addListener(async (changes, areaName) => {
   if (areaName === 'local' && changes[STORAGE_KEY]) {
-    const enabled = changes[STORAGE_KEY].newValue;
-    console.log('[FreeYT] Storage changed, updating rules:', enabled ? 'enabled' : 'disabled');
-    if (enabled) {
-      await enableRedirects();
-    } else {
-      await disableRedirects();
-    }
+    await syncRulesToStorage();
   }
 });
 
-// Best-effort sync whenever the worker spins up
-syncRulesToStorage().catch(err => console.error('[FreeYT] Initial sync failed:', err));
-syncWithNativeApp().catch(err => console.log('[FreeYT] Initial native sync skipped'));
-restoreAllowlistRules().catch(err => console.log('[FreeYT] Allowlist restore skipped:', err));
-
-console.log('[FreeYT] Background service worker loaded at', new Date().toISOString());
+initializeState().catch((error) => console.error('[FreeYT] Initial sync failed:', error));
+console.log('[FreeYT] Background service worker loaded at', nowIso());

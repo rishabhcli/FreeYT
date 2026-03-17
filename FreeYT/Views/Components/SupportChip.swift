@@ -11,7 +11,7 @@ struct SupportChip: View {
 
     @ViewBuilder
     private var supportChipContent: some View {
-        if #available(iOS 26.0, *) {
+        if #available(iOS 26.0, macOS 26.0, *) {
             HStack(alignment: .center, spacing: 10) {
                 Image(systemName: icon)
                     .foregroundColor(LiquidGlassTheme.adaptiveSecondaryText)

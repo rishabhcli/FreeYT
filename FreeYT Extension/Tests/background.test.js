@@ -1,420 +1,291 @@
-/**
- * background.test.js - Tests for the background service worker
- *
- * These tests verify the background script's message handling,
- * storage operations, and rule management functionality.
- */
-
-import { describe, it, beforeEach, mock } from 'node:test';
+import { describe, it } from 'node:test';
 import assert from 'node:assert/strict';
+import { readFileSync } from 'node:fs';
+import { dirname, join } from 'node:path';
+import { fileURLToPath } from 'node:url';
+import vm from 'node:vm';
 
-// Constants from background.js
-const STORAGE_KEY = 'enabled';
-const RULESET_ID = 'ruleset_1';
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = dirname(__filename);
+const backgroundSource = readFileSync(join(__dirname, '..', 'Resources', 'background.js'), 'utf8');
 
-describe('Background Service Worker Constants', () => {
-  it('should use correct storage key', () => {
-    assert.equal(STORAGE_KEY, 'enabled');
-  });
+function flushPromises() {
+  return new Promise((resolve) => setImmediate(resolve));
+}
 
-  it('should use correct ruleset ID', () => {
-    assert.equal(RULESET_ID, 'ruleset_1');
-  });
-});
+async function settle() {
+  await flushPromises();
+  await flushPromises();
+  await flushPromises();
+}
 
-describe('Chrome API Mock Setup', () => {
-  let mockChrome;
-  let storageData;
-  let enabledRulesets;
-  let messageListeners;
-  let storageListeners;
-  let installedListeners;
-  let startupListeners;
+function createBackgroundHarness({
+  activeTabUrl = 'https://www.youtube.com/watch?v=dQw4w9WgXcQ',
+  nativeSnapshot = {}
+} = {}) {
+  const storageData = {};
+  const enabledRulesets = new Set();
+  let dynamicRules = [];
 
-  beforeEach(() => {
-    storageData = {};
-    enabledRulesets = new Set();
-    messageListeners = [];
-    storageListeners = [];
-    installedListeners = [];
-    startupListeners = [];
+  const listeners = {
+    onInstalled: null,
+    onStartup: null,
+    onSuspend: null,
+    onMessage: null,
+    onChanged: null,
+    onRuleMatchedDebug: null,
+    onCompleted: null
+  };
 
-    mockChrome = {
-      storage: {
-        local: {
-          get: mock.fn(async (key) => {
-            if (typeof key === 'string') {
-              return { [key]: storageData[key] };
-            }
-            return storageData;
-          }),
-          set: mock.fn(async (data) => {
-            Object.assign(storageData, data);
-          })
-        },
-        onChanged: {
-          addListener: mock.fn((callback) => {
-            storageListeners.push(callback);
-          })
-        }
-      },
-      declarativeNetRequest: {
-        updateEnabledRulesets: mock.fn(async ({ enableRulesetIds, disableRulesetIds }) => {
-          if (enableRulesetIds) {
-            enableRulesetIds.forEach(id => enabledRulesets.add(id));
-          }
-          if (disableRulesetIds) {
-            disableRulesetIds.forEach(id => enabledRulesets.delete(id));
-          }
-        })
-      },
-      runtime: {
-        onInstalled: {
-          addListener: mock.fn((callback) => {
-            installedListeners.push(callback);
-          })
-        },
-        onStartup: {
-          addListener: mock.fn((callback) => {
-            startupListeners.push(callback);
-          })
-        },
-        onMessage: {
-          addListener: mock.fn((callback) => {
-            messageListeners.push(callback);
-          })
-        }
+  const nativeMessages = [];
+
+  const storageLocal = {
+    async get(keys) {
+      if (keys == null) {
+        return { ...storageData };
       }
-    };
-  });
 
-  describe('Storage Operations', () => {
-    it('should initialize storage with enabled=true on first install', async () => {
-      // Simulate first install - storage is empty
-      storageData = {};
+      if (typeof keys === 'string') {
+        return { [keys]: storageData[keys] };
+      }
 
-      // Simulate onInstalled handler
-      await mockChrome.storage.local.set({ [STORAGE_KEY]: true });
+      if (Array.isArray(keys)) {
+        return Object.fromEntries(keys.map((key) => [key, storageData[key]]));
+      }
 
-      assert.equal(storageData[STORAGE_KEY], true);
-    });
+      if (typeof keys === 'object') {
+        return Object.fromEntries(
+          Object.entries(keys).map(([key, fallback]) => [key, storageData[key] ?? fallback])
+        );
+      }
 
-    it('should preserve existing storage state on reinstall', async () => {
-      // Simulate reinstall - storage has existing value
-      storageData = { [STORAGE_KEY]: false };
+      return {};
+    },
 
-      const result = await mockChrome.storage.local.get(STORAGE_KEY);
-      assert.equal(result[STORAGE_KEY], false);
-    });
+    async set(nextValues) {
+      const changes = {};
+      for (const [key, newValue] of Object.entries(nextValues)) {
+        const oldValue = storageData[key];
+        storageData[key] = newValue;
+        changes[key] = { oldValue, newValue };
+      }
 
-    it('should update storage when state changes', async () => {
-      storageData = { [STORAGE_KEY]: true };
+      if (listeners.onChanged) {
+        await listeners.onChanged(changes, 'local');
+      }
+    },
 
-      await mockChrome.storage.local.set({ [STORAGE_KEY]: false });
-      assert.equal(storageData[STORAGE_KEY], false);
-
-      await mockChrome.storage.local.set({ [STORAGE_KEY]: true });
-      assert.equal(storageData[STORAGE_KEY], true);
-    });
-  });
-
-  describe('Ruleset Management', () => {
-    it('should enable ruleset when enabling redirects', async () => {
-      await mockChrome.declarativeNetRequest.updateEnabledRulesets({
-        enableRulesetIds: [RULESET_ID]
-      });
-
-      assert.ok(enabledRulesets.has(RULESET_ID));
-    });
-
-    it('should disable ruleset when disabling redirects', async () => {
-      enabledRulesets.add(RULESET_ID);
-
-      await mockChrome.declarativeNetRequest.updateEnabledRulesets({
-        disableRulesetIds: [RULESET_ID]
-      });
-
-      assert.ok(!enabledRulesets.has(RULESET_ID));
-    });
-
-    it('should handle enable/disable toggle correctly', async () => {
-      // Enable
-      await mockChrome.declarativeNetRequest.updateEnabledRulesets({
-        enableRulesetIds: [RULESET_ID]
-      });
-      assert.ok(enabledRulesets.has(RULESET_ID));
-
-      // Disable
-      await mockChrome.declarativeNetRequest.updateEnabledRulesets({
-        disableRulesetIds: [RULESET_ID]
-      });
-      assert.ok(!enabledRulesets.has(RULESET_ID));
-
-      // Enable again
-      await mockChrome.declarativeNetRequest.updateEnabledRulesets({
-        enableRulesetIds: [RULESET_ID]
-      });
-      assert.ok(enabledRulesets.has(RULESET_ID));
-    });
-  });
-
-  describe('Message Handling', () => {
-    it('should respond to getState with current enabled status', async () => {
-      storageData = { [STORAGE_KEY]: true };
-
-      // Simulate message handler logic
-      const request = { action: 'getState' };
-      const result = await mockChrome.storage.local.get(STORAGE_KEY);
-      const response = { enabled: result[STORAGE_KEY] ?? true };
-
-      assert.deepEqual(response, { enabled: true });
-    });
-
-    it('should respond to getState with false when disabled', async () => {
-      storageData = { [STORAGE_KEY]: false };
-
-      const request = { action: 'getState' };
-      const result = await mockChrome.storage.local.get(STORAGE_KEY);
-      const response = { enabled: result[STORAGE_KEY] ?? true };
-
-      assert.deepEqual(response, { enabled: false });
-    });
-
-    it('should default to enabled when storage is empty', async () => {
-      storageData = {};
-
-      const result = await mockChrome.storage.local.get(STORAGE_KEY);
-      const response = { enabled: result[STORAGE_KEY] ?? true };
-
-      assert.deepEqual(response, { enabled: true });
-    });
-
-    it('should update state and rules on setState action', async () => {
-      storageData = { [STORAGE_KEY]: true };
-
-      // Simulate setState handler - disable
-      await mockChrome.storage.local.set({ [STORAGE_KEY]: false });
-      await mockChrome.declarativeNetRequest.updateEnabledRulesets({
-        disableRulesetIds: [RULESET_ID]
-      });
-
-      assert.equal(storageData[STORAGE_KEY], false);
-      assert.ok(!enabledRulesets.has(RULESET_ID));
-
-      // Simulate setState handler - enable
-      await mockChrome.storage.local.set({ [STORAGE_KEY]: true });
-      await mockChrome.declarativeNetRequest.updateEnabledRulesets({
-        enableRulesetIds: [RULESET_ID]
-      });
-
-      assert.equal(storageData[STORAGE_KEY], true);
-      assert.ok(enabledRulesets.has(RULESET_ID));
-    });
-
-    it('should return success response after setState', async () => {
-      const response = { success: true };
-      assert.deepEqual(response, { success: true });
-    });
-
-    it('should ignore unknown actions', () => {
-      const request = { action: 'unknownAction' };
-      // The handler should return false for unknown actions
-      const handled = request.action === 'getState' || request.action === 'setState';
-      assert.ok(!handled);
-    });
-  });
-
-  describe('Storage Change Listener', () => {
-    it('should react to storage changes from other contexts', async () => {
-      // Simulate storage change event
-      const changes = {
-        [STORAGE_KEY]: {
-          oldValue: true,
-          newValue: false
-        }
-      };
-      const areaName = 'local';
-
-      // Handler logic
-      if (areaName === 'local' && changes[STORAGE_KEY]) {
-        const enabled = changes[STORAGE_KEY].newValue;
-        if (enabled) {
-          await mockChrome.declarativeNetRequest.updateEnabledRulesets({
-            enableRulesetIds: [RULESET_ID]
-          });
-        } else {
-          await mockChrome.declarativeNetRequest.updateEnabledRulesets({
-            disableRulesetIds: [RULESET_ID]
-          });
+    async remove(keys) {
+      const entries = Array.isArray(keys) ? keys : [keys];
+      const changes = {};
+      for (const key of entries) {
+        if (Object.prototype.hasOwnProperty.call(storageData, key)) {
+          changes[key] = { oldValue: storageData[key], newValue: undefined };
+          delete storageData[key];
         }
       }
 
-      assert.ok(!enabledRulesets.has(RULESET_ID));
-    });
-
-    it('should ignore storage changes from sync area', async () => {
-      const changes = {
-        [STORAGE_KEY]: {
-          oldValue: true,
-          newValue: false
-        }
-      };
-      const areaName = 'sync';
-
-      // Handler should not process sync area changes
-      const shouldProcess = areaName === 'local' && changes[STORAGE_KEY];
-      assert.ok(!shouldProcess);
-    });
-
-    it('should ignore changes to other keys', async () => {
-      const changes = {
-        'otherKey': {
-          oldValue: 'old',
-          newValue: 'new'
-        }
-      };
-      const areaName = 'local';
-
-      const shouldProcess = areaName === 'local' && changes[STORAGE_KEY];
-      assert.ok(!shouldProcess);
-    });
-  });
-
-  describe('Error Handling', () => {
-    it('should handle storage.get errors gracefully', async () => {
-      const mockErrorChrome = {
-        storage: {
-          local: {
-            get: mock.fn(async () => {
-              throw new Error('Storage unavailable');
-            })
-          }
-        }
-      };
-
-      let error = null;
-      try {
-        await mockErrorChrome.storage.local.get(STORAGE_KEY);
-      } catch (e) {
-        error = e;
+      if (listeners.onChanged && Object.keys(changes).length > 0) {
+        await listeners.onChanged(changes, 'local');
       }
-
-      assert.ok(error !== null);
-      assert.equal(error.message, 'Storage unavailable');
-    });
-
-    it('should handle updateEnabledRulesets errors gracefully', async () => {
-      const mockErrorChrome = {
-        declarativeNetRequest: {
-          updateEnabledRulesets: mock.fn(async () => {
-            throw new Error('Failed to update rulesets');
-          })
-        }
-      };
-
-      let error = null;
-      try {
-        await mockErrorChrome.declarativeNetRequest.updateEnabledRulesets({
-          enableRulesetIds: [RULESET_ID]
-        });
-      } catch (e) {
-        error = e;
-      }
-
-      assert.ok(error !== null);
-      assert.equal(error.message, 'Failed to update rulesets');
-    });
-  });
-
-  describe('Sync Rules to Storage', () => {
-    it('should sync rules to enabled state from storage', async () => {
-      storageData = { [STORAGE_KEY]: true };
-
-      const result = await mockChrome.storage.local.get(STORAGE_KEY);
-      const enabled = result[STORAGE_KEY] ?? true;
-
-      if (enabled) {
-        await mockChrome.declarativeNetRequest.updateEnabledRulesets({
-          enableRulesetIds: [RULESET_ID]
-        });
-      }
-
-      assert.ok(enabledRulesets.has(RULESET_ID));
-    });
-
-    it('should sync rules to disabled state from storage', async () => {
-      storageData = { [STORAGE_KEY]: false };
-      enabledRulesets.add(RULESET_ID);
-
-      const result = await mockChrome.storage.local.get(STORAGE_KEY);
-      const enabled = result[STORAGE_KEY] ?? true;
-
-      if (!enabled) {
-        await mockChrome.declarativeNetRequest.updateEnabledRulesets({
-          disableRulesetIds: [RULESET_ID]
-        });
-      }
-
-      assert.ok(!enabledRulesets.has(RULESET_ID));
-    });
-
-    it('should default to enabled when storage is undefined', async () => {
-      storageData = {};
-
-      const result = await mockChrome.storage.local.get(STORAGE_KEY);
-      const enabled = result[STORAGE_KEY] ?? true;
-
-      assert.equal(enabled, true);
-    });
-  });
-});
-
-describe('Integration Scenarios', () => {
-  it('should handle fresh install flow correctly', async () => {
-    const storageData = {};
-    const enabledRulesets = new Set();
-
-    // 1. Check if storage has value
-    const hasValue = storageData[STORAGE_KEY] !== undefined;
-    assert.ok(!hasValue, 'Storage should be empty on fresh install');
-
-    // 2. Set default enabled state
-    storageData[STORAGE_KEY] = true;
-    assert.equal(storageData[STORAGE_KEY], true);
-
-    // 3. Enable rulesets
-    enabledRulesets.add(RULESET_ID);
-    assert.ok(enabledRulesets.has(RULESET_ID));
-  });
-
-  it('should handle user disable/enable cycle', async () => {
-    const storageData = { [STORAGE_KEY]: true };
-    const enabledRulesets = new Set([RULESET_ID]);
-
-    // User disables
-    storageData[STORAGE_KEY] = false;
-    enabledRulesets.delete(RULESET_ID);
-    assert.equal(storageData[STORAGE_KEY], false);
-    assert.ok(!enabledRulesets.has(RULESET_ID));
-
-    // User enables again
-    storageData[STORAGE_KEY] = true;
-    enabledRulesets.add(RULESET_ID);
-    assert.equal(storageData[STORAGE_KEY], true);
-    assert.ok(enabledRulesets.has(RULESET_ID));
-  });
-
-  it('should handle service worker restart (Safari wake-up)', async () => {
-    // Simulate service worker restart - storage persists but rulesets need re-sync
-    const storageData = { [STORAGE_KEY]: true };
-    const enabledRulesets = new Set(); // Rulesets cleared on restart
-
-    // Sync rules to storage state
-    const enabled = storageData[STORAGE_KEY] ?? true;
-    if (enabled) {
-      enabledRulesets.add(RULESET_ID);
     }
+  };
 
-    assert.ok(enabledRulesets.has(RULESET_ID));
+  const chrome = {
+    storage: {
+      local: storageLocal,
+      onChanged: {
+        addListener(callback) {
+          listeners.onChanged = callback;
+        }
+      }
+    },
+    declarativeNetRequest: {
+      async updateEnabledRulesets({ enableRulesetIds = [], disableRulesetIds = [] }) {
+        enableRulesetIds.forEach((id) => enabledRulesets.add(id));
+        disableRulesetIds.forEach((id) => enabledRulesets.delete(id));
+      },
+      async getEnabledRulesets() {
+        return Array.from(enabledRulesets);
+      },
+      async getDynamicRules() {
+        return dynamicRules.slice();
+      },
+      async updateDynamicRules({ removeRuleIds = [], addRules = [] }) {
+        dynamicRules = dynamicRules
+          .filter((rule) => !removeRuleIds.includes(rule.id))
+          .concat(addRules);
+      },
+      onRuleMatchedDebug: {
+        addListener(callback) {
+          listeners.onRuleMatchedDebug = callback;
+        }
+      }
+    },
+    runtime: {
+      onInstalled: {
+        addListener(callback) {
+          listeners.onInstalled = callback;
+        }
+      },
+      onStartup: {
+        addListener(callback) {
+          listeners.onStartup = callback;
+        }
+      },
+      onSuspend: {
+        addListener(callback) {
+          listeners.onSuspend = callback;
+        }
+      },
+      onMessage: {
+        addListener(callback) {
+          listeners.onMessage = callback;
+        }
+      }
+    },
+    tabs: {
+      async query() {
+        return [{ url: activeTabUrl }];
+      }
+    },
+    webNavigation: {
+      onCompleted: {
+        addListener(callback) {
+          listeners.onCompleted = callback;
+        }
+      }
+    }
+  };
+
+  const browser = {
+    runtime: {
+      async sendNativeMessage(_identifier, message) {
+        nativeMessages.push(message);
+
+        if (message.action === 'getDashboardSnapshot') {
+          return nativeSnapshot;
+        }
+
+        if (message.action === 'openDashboard') {
+          return { success: true };
+        }
+
+        if (message.action === 'syncDashboardState') {
+          return { success: true };
+        }
+
+        return {};
+      }
+    }
+  };
+
+  const context = vm.createContext({
+    chrome,
+    browser,
+    URL,
+    console: {
+      log() {},
+      error() {}
+    },
+    setTimeout,
+    clearTimeout
+  });
+
+  vm.runInContext(backgroundSource, context, { filename: 'background.js' });
+
+  return {
+    listeners,
+    storageData,
+    nativeMessages,
+    get enabledRulesets() {
+      return enabledRulesets;
+    },
+    get dynamicRules() {
+      return dynamicRules;
+    }
+  };
+}
+
+async function loadBackground(options = {}) {
+  const harness = createBackgroundHarness(options);
+  await settle();
+  return harness;
+}
+
+async function sendMessage(harness, request) {
+  return new Promise((resolve, reject) => {
+    const timeout = setTimeout(() => reject(new Error(`No response for ${request.action}`)), 200);
+
+    harness.listeners.onMessage(request, {}, (response) => {
+      clearTimeout(timeout);
+      resolve(response);
+    });
+  });
+}
+
+describe('background.js dashboard state', () => {
+  it('initializes with enabled protection, a sync timestamp, and no exceptions', async () => {
+    const harness = await loadBackground();
+
+    assert.equal(harness.storageData.enabled, true);
+    assert.deepEqual(Array.from(harness.storageData.allowlist ?? []), []);
+    assert.ok(typeof harness.storageData.dashboardSyncTimestamp === 'string');
+    assert.ok(harness.enabledRulesets.has('ruleset_1'));
+  });
+
+  it('records redirect activity into all-time, today, and recent activity surfaces', async () => {
+    const harness = await loadBackground();
+
+    await harness.listeners.onRuleMatchedDebug({
+      rule: { rulesetId: 'ruleset_1' },
+      request: { url: 'https://www.youtube.com/watch?v=abc123xyz98' }
+    });
+    await settle();
+
+    const state = await sendMessage(harness, { action: 'getDashboardState' });
+    const todayKey = Object.keys(state.dailyCounts)[0];
+
+    assert.equal(state.videoCount, 1);
+    assert.equal(state.todayCount, 1);
+    assert.equal(state.dailyCounts[todayKey], 1);
+    assert.equal(state.recentActivity.length, 1);
+    assert.equal(state.recentActivity[0].host, 'youtube.com');
+    assert.equal(state.recentActivity[0].kind, 'watch');
+  });
+
+  it('adds and removes a quick exception for the active YouTube tab', async () => {
+    const harness = await loadBackground({
+      activeTabUrl: 'https://music.youtube.com/watch?v=abc123xyz98'
+    });
+
+    const added = await sendMessage(harness, { action: 'toggleCurrentSiteException' });
+    assert.equal(added.success, true);
+    assert.deepEqual(Array.from(added.exceptions), ['music.youtube.com']);
+    assert.equal(added.currentSite.isException, true);
+    assert.equal(harness.dynamicRules.length, 1);
+    assert.equal(harness.dynamicRules[0].condition.urlFilter, '*://music.youtube.com/*');
+
+    const removed = await sendMessage(harness, { action: 'toggleCurrentSiteException' });
+    assert.equal(removed.success, true);
+    assert.deepEqual(Array.from(removed.exceptions), []);
+    assert.equal(removed.currentSite.isException, false);
+    assert.equal(harness.dynamicRules.length, 0);
+  });
+
+  it('keeps legacy allowlist messaging compatible with the new exceptions UI', async () => {
+    const harness = await loadBackground();
+
+    const addResponse = await sendMessage(harness, {
+      action: 'addToAllowlist',
+      pattern: 'music.youtube.com'
+    });
+    assert.equal(addResponse.success, true);
+    assert.deepEqual(Array.from(addResponse.allowlist), ['music.youtube.com']);
+    assert.deepEqual(Array.from(addResponse.exceptions), ['music.youtube.com']);
+
+    const listResponse = await sendMessage(harness, { action: 'getAllowlist' });
+    assert.deepEqual(Array.from(listResponse.allowlist), ['music.youtube.com']);
+    assert.deepEqual(Array.from(listResponse.exceptions), ['music.youtube.com']);
   });
 });

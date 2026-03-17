@@ -10,7 +10,7 @@ struct StatusBadge: View {
 
     @ViewBuilder
     private var statusBadgeContent: some View {
-        if #available(iOS 26.0, *) {
+        if #available(iOS 26.0, macOS 26.0, *) {
             ZStack {
                 if isChecking {
                     ProgressView()

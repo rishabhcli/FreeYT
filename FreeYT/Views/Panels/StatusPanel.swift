@@ -1,63 +1,69 @@
 import SwiftUI
 
 struct StatusPanel: View {
-    let isEnabled: Bool
-    let isChecking: Bool
-    let glassSpace: Namespace.ID
+    let snapshot: DashboardSnapshot
     let toggleBinding: Binding<Bool>
-    let videoCount: Int
-    @Namespace private var metricsNamespace
+    let openSettings: () -> Void
 
     var body: some View {
-        VStack(alignment: .leading, spacing: 14) {
-            GlassCluster(glassSpace: glassSpace) {
-                HStack(spacing: 12) {
-                    StatusBadge(isEnabled: isEnabled, isChecking: isChecking)
-                        .glassID("badge", in: glassSpace)
+        VStack(alignment: .leading, spacing: 16) {
+            HStack(alignment: .center, spacing: 14) {
+                StatusBadge(isEnabled: snapshot.enabled, isChecking: false)
 
-                    VStack(alignment: .leading, spacing: 4) {
-                        Text(isChecking ? "Checking Safari state…" : isEnabled ? "Shield active" : "Shield paused")
-                            .font(.system(size: 17, weight: .semibold))
-                            .foregroundColor(LiquidGlassTheme.adaptiveText)
-                            .glassID("headline", in: glassSpace)
+                VStack(alignment: .leading, spacing: 6) {
+                    Text(snapshot.enabled ? "Protection is active" : "Protection is paused")
+                        .font(.system(size: 18, weight: .semibold))
+                        .foregroundStyle(LiquidGlassTheme.adaptiveText)
 
-                        Text(isEnabled ? "Auto-redirecting to youtube-nocookie.com." : "Enable the extension in Safari Extensions.")
-                            .foregroundColor(LiquidGlassTheme.adaptiveSecondaryText)
-                            .font(.system(size: 13))
-                            .glassID("subhead", in: glassSpace)
-                    }
-
-                    Spacer(minLength: 8)
-
-                    LiquidToggle(binding: toggleBinding, glassSpace: glassSpace)
-                        .frame(width: 120)
+                    Text(snapshot.enabled ? "YouTube links are being redirected to privacy-enhanced embeds." : "Turn protection back on to resume privacy-safe YouTube routing.")
+                        .font(.system(size: 14, weight: .medium))
+                        .foregroundStyle(LiquidGlassTheme.adaptiveSecondaryText)
+                        .lineSpacing(3)
                 }
+
+                Spacer()
+
+                LiquidToggle(binding: toggleBinding)
+                    .frame(width: 124)
             }
 
-            metricsRow
+            HStack(spacing: 12) {
+                Metric(label: "Today", value: "\(snapshot.todayCount)", tone: .success)
+                Metric(label: "This Week", value: "\(snapshot.weekCount)", tone: .normal)
+                Metric(label: "All Time", value: "\(snapshot.videoCount)", tone: .normal)
+            }
+
+            HStack(spacing: 10) {
+                Button(action: openSettings) {
+                    Label("Open Safari Settings", systemImage: "safari")
+                        .frame(maxWidth: .infinity)
+                }
+                .liquidButton(prominent: true, tint: LiquidGlassTheme.accentStrong)
+
+                syncStatePill
+            }
         }
         .glassCard()
     }
 
-    @ViewBuilder
-    private var metricsRow: some View {
-        if #available(iOS 26.0, *) {
-            GlassEffectContainer(spacing: 8) {
-                HStack(spacing: 10) {
-                    Metric(label: "Videos", value: "\(videoCount)", tone: .success)
-                        .glassEffectUnion(id: "metrics", namespace: metricsNamespace)
-                    Metric(label: "Route", value: "No-cookie embed")
-                        .glassEffectUnion(id: "metrics", namespace: metricsNamespace)
-                    Metric(label: "Status", value: isEnabled ? "Enabled" : "Disabled", tone: isEnabled ? .success : .warning)
-                        .glassEffectUnion(id: "metrics", namespace: metricsNamespace)
-                }
-            }
-        } else {
-            HStack(spacing: 10) {
-                Metric(label: "Videos", value: "\(videoCount)", tone: .success)
-                Metric(label: "Route", value: "No-cookie embed")
-                Metric(label: "Status", value: isEnabled ? "Enabled" : "Disabled", tone: isEnabled ? .success : .warning)
+    private var syncStatePill: some View {
+        HStack(spacing: 8) {
+            Image(systemName: snapshot.lastSyncState == .synced ? "checkmark.circle.fill" : "clock.badge.exclamationmark")
+                .foregroundStyle(snapshot.lastSyncState == .synced ? LiquidGlassTheme.success : LiquidGlassTheme.warning)
+
+            VStack(alignment: .leading, spacing: 2) {
+                Text(snapshot.lastSyncState.label)
+                    .font(.system(size: 12, weight: .semibold))
+                Text(snapshot.lastSyncState.detail)
+                    .font(.system(size: 11, weight: .medium))
+                    .foregroundStyle(LiquidGlassTheme.adaptiveSecondaryText)
+                    .lineLimit(2)
             }
         }
+        .glassCard(
+            radius: 16,
+            tint: (snapshot.lastSyncState == .synced ? LiquidGlassTheme.success : LiquidGlassTheme.warning).opacity(0.12),
+            padding: 12
+        )
     }
 }

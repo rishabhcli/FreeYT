@@ -1,59 +1,37 @@
 import SwiftUI
 
 struct ActionButton: View {
-    let isEnabled: Bool
+    let snapshot: DashboardSnapshot
     let openSettings: () -> Void
-    @State private var isPressed = false
-    @Environment(\.accessibilityReduceTransparency) private var reduceTransparency
+    let onRefresh: () -> Void
 
     var body: some View {
-        buttonContent
-    }
+        VStack(alignment: .leading, spacing: 16) {
+            HStack {
+                Text("Quick actions")
+                    .font(.system(size: 19, weight: .semibold))
+                Spacer()
+                Pill(text: snapshot.lastProtectedAt == nil ? "Verify" : "Ready", icon: snapshot.lastProtectedAt == nil ? "sparkles" : "checkmark.circle.fill")
+            }
 
-    @ViewBuilder
-    private var buttonContent: some View {
-        if #available(iOS 26.0, *) {
-            Button(action: openSettings) {
-                HStack(spacing: 10) {
-                    Image(systemName: isEnabled ? "checkmark.circle.fill" : "safari")
-                        .font(.system(size: 18, weight: .semibold))
-                    Text(isEnabled ? "Extension active" : "Open Safari Settings")
-                        .font(.system(size: 17, weight: .semibold))
+            Text("Use these shortcuts to verify Safari access, refresh the dashboard, and keep protection in sync.")
+                .font(.system(size: 14, weight: .medium))
+                .foregroundStyle(LiquidGlassTheme.adaptiveSecondaryText)
+
+            HStack(spacing: 10) {
+                Button(action: openSettings) {
+                    Label("Safari Settings", systemImage: "safari")
+                        .frame(maxWidth: .infinity)
                 }
-                .frame(maxWidth: .infinity)
-                .frame(height: 58)
-            }
-            .buttonStyle(.glassProminent)
-            .disabled(isEnabled)
-        } else {
-            Button(action: openSettings) {
-                HStack(spacing: 10) {
-                    Image(systemName: isEnabled ? "checkmark.circle.fill" : "safari")
-                        .font(.system(size: 18, weight: .semibold))
-                    Text(isEnabled ? "Extension active" : "Open Safari Settings")
-                        .font(.system(size: 17, weight: .semibold))
+                .liquidButton(prominent: true, tint: LiquidGlassTheme.accentStrong)
+
+                Button(action: onRefresh) {
+                    Label("Refresh", systemImage: "arrow.clockwise")
+                        .frame(maxWidth: .infinity)
                 }
-                .foregroundColor(.white)
-                .frame(maxWidth: .infinity)
-                .frame(height: 58)
-                .background(
-                    Capsule(style: .continuous)
-                        .fill(Color.white.opacity(isEnabled ? 0.08 : 0.15))
-                        .overlay(
-                            Capsule(style: .continuous)
-                                .strokeBorder(Color.white.opacity(0.2), lineWidth: 1.2)
-                        )
-                        .shadow(color: Color.black.opacity(0.25), radius: 18, x: 0, y: 10)
-                )
-                .scaleEffect(isPressed ? 0.97 : 1)
-                .animation(.spring(response: 0.28, dampingFraction: 0.7), value: isPressed)
+                .liquidButton()
             }
-            .disabled(isEnabled)
-            .simultaneousGesture(
-                DragGesture(minimumDistance: 0)
-                    .onChanged { _ in isPressed = true }
-                    .onEnded { _ in isPressed = false; Haptics.light() }
-            )
         }
+        .glassCard()
     }
 }

@@ -2,205 +2,133 @@
 //  LiquidGlassView.swift
 //  FreeYT
 //
-//  Main app UI view
+//  Main dashboard UI
 //
 
 import SwiftUI
 import UIKit
-import Combine
 
-/// Main app view
 struct LiquidGlassView: View {
-    @State private var isExtensionEnabled = false
-    @State private var checkingState = true
-    @State private var videoCount: Int = 0
-    @State private var panelsAppeared = false
-    @State private var selectedSection: SidebarSection? = .status
+    @ObservedObject var store: DashboardStore
+    @Environment(\.scenePhase) private var scenePhase
     @Namespace private var glassSpace
 
-    private var isIOS26: Bool {
-        if #available(iOS 26.0, *) { return true }
-        return false
+    init(store: DashboardStore) {
+        self.store = store
     }
-
-    // Timer for periodic sync with shared state
-    private let syncTimer = Timer.publish(every: 2, on: .main, in: .common).autoconnect()
 
     var body: some View {
-        if #available(iOS 26.0, *) {
-            sidebarLayout
-                .onAppear {
-                    refreshFromSharedState()
-                }
-                .onReceive(syncTimer) { _ in
-                    refreshFromSharedState()
-                }
-        } else {
-            legacyLayout
-                .onAppear {
-                    refreshFromSharedState()
-                }
-                .onReceive(syncTimer) { _ in
-                    refreshFromSharedState()
-                }
-        }
-    }
-
-    // MARK: - iOS 26+ Sidebar Layout
-
-    @available(iOS 26.0, *)
-    private var sidebarLayout: some View {
         NavigationSplitView {
-            List(SidebarSection.allCases, selection: $selectedSection) { section in
+            List(SidebarSection.allCases, selection: sectionBinding) { section in
                 NavigationLink(value: section) {
-                    SidebarRow(section: section, isEnabled: isExtensionEnabled, videoCount: videoCount)
+                    SidebarRow(section: section, snapshot: store.snapshot)
                 }
             }
-            .navigationTitle("FreeYT")
             .listStyle(.sidebar)
+            .navigationTitle("FreeYT")
+            .scrollContentBackground(.hidden)
+            .background(sidebarBackground)
         } detail: {
             ScrollView(showsIndicators: false) {
-                VStack(spacing: 18) {
-                    detailContent
+                GlassCluster(glassSpace: glassSpace) {
+                    VStack(spacing: LiquidGlassTheme.sectionSpacing) {
+                        detailContent
+                    }
+                    .glassTransitionIfAvailable()
                 }
-                .padding(.horizontal, 18)
-                .padding(.top, 12)
+                .padding(.horizontal, LiquidGlassTheme.pagePadding)
+                .padding(.top, 18)
                 .padding(.bottom, 32)
             }
-            .navigationTitle(selectedSection?.title ?? "FreeYT")
+            .background(detailBackground.ignoresSafeArea())
+            .navigationTitle(store.selectedSection.title)
+        }
+        .tint(LiquidGlassTheme.accentStrong)
+        .onAppear { store.refresh() }
+        .onChange(of: scenePhase) { _, newPhase in
+            if newPhase == .active {
+                store.refresh()
+            }
+        }
+        .onReceive(NotificationCenter.default.publisher(for: UIApplication.willEnterForegroundNotification)) { _ in
+            store.refresh()
+        }
+        .onReceive(NotificationCenter.default.publisher(for: UserDefaults.didChangeNotification)) { _ in
+            store.refresh()
         }
     }
 
-    // MARK: - iOS 26+ Detail Content
-
-    @available(iOS 26.0, *)
     @ViewBuilder
     private var detailContent: some View {
-        switch selectedSection {
-        case .status:
-            StatusPanel(isEnabled: isExtensionEnabled, isChecking: checkingState, glassSpace: glassSpace, toggleBinding: toggleBinding, videoCount: videoCount)
-                .glassTransitionIfAvailable()
-            ActionButton(isEnabled: isExtensionEnabled, openSettings: openSafariSettings)
-                .glassTransitionIfAvailable()
+        switch store.selectedSection {
+        case .overview:
+            HeroCard(snapshot: store.snapshot)
+            StatusPanel(
+                snapshot: store.snapshot,
+                toggleBinding: Binding(
+                    get: { store.snapshot.enabled },
+                    set: { store.setProtectionEnabled($0) }
+                ),
+                openSettings: store.openSafariSettings
+            )
+            ActionButton(snapshot: store.snapshot, openSettings: store.openSafariSettings, onRefresh: store.refresh)
 
-        case .statistics:
-            VideoStatsPanel(videoCount: videoCount)
-                .glassTransitionIfAvailable()
+        case .activity:
+            VideoStatsPanel(snapshot: store.snapshot)
+
+        case .exceptions:
+            ExceptionsPanel(snapshot: store.snapshot, onAdd: store.addException, onRemove: store.removeException)
+
+        case .trust:
+            SupportPanel(snapshot: store.snapshot, onRefresh: store.refresh, openSettings: store.openSafariSettings)
+            DiagnosticsPanel(snapshot: store.snapshot)
 
         case .setup:
-            StepsPanel()
-                .glassTransitionIfAvailable()
-
-        case .support:
-            SupportPanel(onRefresh: refreshFromSharedState)
-                .glassTransitionIfAvailable()
-            DiagnosticsPanel(isEnabled: isExtensionEnabled, checking: checkingState, videoCount: videoCount)
-                .glassTransitionIfAvailable()
-
-        case .about:
-            HeroCard()
-                .glassTransitionIfAvailable()
-
-        case .none:
-            HeroCard()
-                .glassTransitionIfAvailable()
+            StepsPanel(snapshot: store.snapshot, openSettings: store.openSafariSettings)
         }
     }
 
-    // MARK: - Pre-iOS 26 Legacy Layout
-
-    private var legacyLayout: some View {
-        ZStack {
-            BackgroundGlow()
-                .ignoresSafeArea()
-
-            ParticleField(count: 18)
-                .ignoresSafeArea()
-                .blendMode(.plusLighter)
-                .opacity(0.6)
-
-            ScrollView(showsIndicators: false) {
-                VStack(spacing: 18) {
-                    panelStack
-                }
-                .padding(.horizontal, 18)
-                .padding(.top, 12)
-                .padding(.bottom, 32)
-            }
-        }
-    }
-
-    @ViewBuilder
-    private var panelStack: some View {
-        HeroCard()
-            .glassTransitionIfAvailable()
-
-        StatusPanel(isEnabled: isExtensionEnabled, isChecking: checkingState, glassSpace: glassSpace, toggleBinding: toggleBinding, videoCount: videoCount)
-            .glassTransitionIfAvailable()
-
-        VideoStatsPanel(videoCount: videoCount)
-            .glassTransitionIfAvailable()
-
-        StepsPanel()
-            .glassTransitionIfAvailable()
-
-        SupportPanel(onRefresh: refreshFromSharedState)
-            .glassTransitionIfAvailable()
-
-        DiagnosticsPanel(isEnabled: isExtensionEnabled, checking: checkingState, videoCount: videoCount)
-            .glassTransitionIfAvailable()
-
-        ActionButton(isEnabled: isExtensionEnabled, openSettings: openSafariSettings)
-            .glassTransitionIfAvailable()
-    }
-
-    private var toggleBinding: Binding<Bool> {
+    private var sectionBinding: Binding<SidebarSection?> {
         Binding(
-            get: { isExtensionEnabled },
-            set: { newValue in
-                handleToggleChange(newValue)
-            }
+            get: { store.selectedSection },
+            set: { store.selectedSection = $0 ?? .overview }
         )
     }
 
-    private func handleToggleChange(_ newValue: Bool) {
-        // Update shared state so extension can sync
-        SharedState.isEnabled = newValue
-        isExtensionEnabled = newValue
-
-        // If enabling, guide user to Safari Settings
-        if newValue {
-            openSafariSettings()
+    private var sidebarBackground: some View {
+        ZStack {
+            Color.clear
+            if #available(iOS 26.0, macOS 26.0, *) {
+                RoundedRectangle(cornerRadius: 28, style: .continuous)
+                    .fill(.clear)
+                    .glassEffect(.regular.tint(LiquidGlassTheme.sidebarTint), in: RoundedRectangle(cornerRadius: 28, style: .continuous))
+                    .padding(.vertical, 8)
+                    .padding(.leading, 8)
+            } else {
+                LinearGradient(
+                    colors: [
+                        Color.white.opacity(0.14),
+                        Color.white.opacity(0.04)
+                    ],
+                    startPoint: .top,
+                    endPoint: .bottom
+                )
+            }
         }
     }
 
-    /// Refresh state from the App Groups shared container
-    private func refreshFromSharedState() {
-        // Read from shared App Group container
-        isExtensionEnabled = SharedState.isEnabled
-        videoCount = SharedState.videoCount
-        checkingState = false
-    }
-
-    private func openSafariSettings() {
-        let candidates = [
-            "App-Prefs:root=SAFARI&path=WEB_EXTENSIONS",
-            "App-Prefs:root=SAFARI",
-            UIApplication.openSettingsURLString
-        ]
-        for candidate in candidates {
-            if let url = URL(string: candidate), UIApplication.shared.canOpenURL(url) {
-                UIApplication.shared.open(url, options: [:], completionHandler: nil)
-                break
-            }
+    private var detailBackground: some View {
+        ZStack {
+            BackgroundGlow()
+            ParticleField(count: 14)
+                .blendMode(.plusLighter)
+                .opacity(0.32)
         }
     }
 }
 
-// MARK: - Preview
-
 struct LiquidGlassView_Previews: PreviewProvider {
     static var previews: some View {
-        LiquidGlassView()
+        LiquidGlassView(store: .shared)
     }
 }

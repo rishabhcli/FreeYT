@@ -1,353 +1,258 @@
-(function(){
+(function () {
   'use strict';
 
   const enabledToggle = document.getElementById('enabledToggle');
-  const statusText = document.getElementById('statusText');
-  const statusDetail = document.getElementById('statusDetail');
+  const summaryTitle = document.getElementById('summaryTitle');
+  const summaryDetail = document.getElementById('summaryDetail');
   const statusPill = document.getElementById('statusPill');
-  const videoCountEl = document.getElementById('videoCount');
-  const allowlistRow = document.getElementById('allowlistRow');
-  const allowlistPanel = document.getElementById('allowlistPanel');
-  const allowlistInput = document.getElementById('allowlistInput');
-  const allowlistAddBtn = document.getElementById('allowlistAdd');
-  const allowlistEntriesEl = document.getElementById('allowlistEntries');
-  const allowlistCountEl = document.getElementById('allowlistCount');
-  const refreshRow = document.getElementById('refreshRow');
+  const syncPill = document.getElementById('syncPill');
+  const currentSitePill = document.getElementById('currentSitePill');
   const todayCountEl = document.getElementById('todayCount');
   const weekCountEl = document.getElementById('weekCount');
+  const videoCountEl = document.getElementById('videoCount');
+  const currentSiteDetail = document.getElementById('currentSiteDetail');
+  const currentSiteButton = document.getElementById('currentSiteButton');
+  const exceptionsButton = document.getElementById('exceptionsButton');
+  const dashboardButton = document.getElementById('dashboardButton');
+  const refreshButton = document.getElementById('refreshButton');
+  const exceptionsPanel = document.getElementById('exceptionsPanel');
+  const exceptionsCount = document.getElementById('exceptionsCount');
+  const exceptionInput = document.getElementById('exceptionInput');
+  const exceptionAdd = document.getElementById('exceptionAdd');
+  const exceptionsList = document.getElementById('exceptionsList');
+  const toast = document.getElementById('toast');
 
-  const MAX_ALLOWLIST = 50;
+  let dashboardState = null;
 
-  // Send message with timeout to handle service worker wake-up delays
-  function sendMessageWithTimeout(msg, timeoutMs = 3000) {
-    return Promise.race([
-      chrome.runtime.sendMessage(msg),
-      new Promise((_, reject) =>
-        setTimeout(() => reject(new Error('Background script timeout')), timeoutMs)
-      )
-    ]);
-  }
-
-  // Update UI based on enabled state
-  function setStatusUI(enabled) {
-    enabledToggle.checked = enabled;
-    enabledToggle.setAttribute('aria-checked', enabled ? 'true' : 'false');
-
-    statusText.textContent = enabled ? 'Protection Enabled' : 'Protection Disabled';
-    statusDetail.textContent = enabled
-      ? 'Redirecting to youtube-nocookie.com'
-      : 'Enable to redirect YouTube links';
-
-    if (statusPill) {
-      statusPill.textContent = enabled ? 'Active' : 'Paused';
-      statusPill.classList.toggle('inactive', !enabled);
-    }
-  }
-
-  // Update video count display
-  function setVideoCount(count) {
-    if (videoCountEl) {
-      videoCountEl.textContent = count.toLocaleString();
-    }
-  }
-
-  // Update daily stats display
-  function setDailyStats(stats) {
-    if (!stats) return;
-    const today = new Date().toISOString().slice(0, 10);
-    const todayVal = stats[today] || 0;
-
-    let weekVal = 0;
-    Object.values(stats).forEach(v => { weekVal += v; });
-
-    if (todayCountEl) todayCountEl.textContent = todayVal.toLocaleString();
-    if (weekCountEl) weekCountEl.textContent = weekVal.toLocaleString();
-  }
-
-  // Show error message to user
-  function showError(message) {
-    const errorDiv = document.createElement('div');
-    errorDiv.className = 'error-message';
-    errorDiv.textContent = message;
-    errorDiv.setAttribute('role', 'alert');
-    errorDiv.setAttribute('aria-live', 'assertive');
-    errorDiv.style.cssText = `
-      position: fixed;
-      top: 10px;
-      left: 50%;
-      transform: translateX(-50%);
-      background: #ff4444;
-      color: white;
-      padding: 12px 20px;
-      border-radius: 8px;
-      font-size: 13px;
-      font-weight: 500;
-      box-shadow: 0 4px 12px rgba(0, 0, 0, 0.2);
-      z-index: 1000;
-      animation: slideDown 0.3s ease-out;
-    `;
-    document.body.appendChild(errorDiv);
-    setTimeout(() => {
-      errorDiv.style.opacity = '0';
-      errorDiv.style.transition = 'opacity 0.3s';
-      setTimeout(() => errorDiv.remove(), 300);
-    }, 3000);
-  }
-
-  // Show success message to user
-  function showSuccess(message) {
-    const div = document.createElement('div');
-    div.className = 'success-message';
-    div.textContent = message;
-    div.setAttribute('role', 'status');
-    div.style.cssText = `
-      position: fixed;
-      top: 10px;
-      left: 50%;
-      transform: translateX(-50%);
-      background: #34c759;
-      color: white;
-      padding: 12px 20px;
-      border-radius: 8px;
-      font-size: 13px;
-      font-weight: 500;
-      box-shadow: 0 4px 12px rgba(0, 0, 0, 0.2);
-      z-index: 1000;
-      animation: slideDown 0.3s ease-out;
-    `;
-    document.body.appendChild(div);
-    setTimeout(() => {
-      div.style.opacity = '0';
-      div.style.transition = 'opacity 0.3s';
-      setTimeout(() => div.remove(), 300);
-    }, 2000);
-  }
-
-  // Escape HTML to prevent XSS
-  function escapeHTML(str) {
-    const div = document.createElement('div');
-    div.appendChild(document.createTextNode(str));
-    return div.innerHTML;
-  }
-
-  // Validate domain format for allowlist
-  function isValidDomain(str) {
-    return /^(\*\.)?[a-zA-Z0-9]([a-zA-Z0-9-]*[a-zA-Z0-9])?(\.[a-zA-Z0-9]([a-zA-Z0-9-]*[a-zA-Z0-9])?)*\.[a-zA-Z]{2,}$/.test(str);
-  }
-
-  // Update allowlist count display
-  function updateAllowlistCount(count) {
-    if (allowlistCountEl) {
-      allowlistCountEl.textContent = count > 0 ? `(${count})` : '';
-    }
-  }
-
-  // Render the allowlist entries
-  function renderAllowlist(list) {
-    if (!allowlistEntriesEl) return;
-    allowlistEntriesEl.innerHTML = '';
-    updateAllowlistCount(list.length);
-
-    if (list.length === 0) {
-      const li = document.createElement('li');
-      li.className = 'allowlist-empty';
-      li.textContent = 'No domains allowlisted';
-      li.style.cssText = 'color: var(--fg-muted); font-style: italic; justify-content: center;';
-      allowlistEntriesEl.appendChild(li);
-      return;
-    }
-
-    list.forEach(pattern => {
-      const li = document.createElement('li');
-      li.innerHTML = `<span>${escapeHTML(pattern)}</span><button class="remove-btn" data-pattern="${escapeHTML(pattern)}" aria-label="Remove ${escapeHTML(pattern)}">×</button>`;
-      allowlistEntriesEl.appendChild(li);
-    });
-
-    // Attach remove listeners
-    allowlistEntriesEl.querySelectorAll('.remove-btn').forEach(btn => {
-      btn.addEventListener('click', async () => {
-        try {
-          const result = await sendMessageWithTimeout({ action: 'removeFromAllowlist', pattern: btn.dataset.pattern });
-          if (result?.allowlist) {
-            renderAllowlist(result.allowlist);
-            showSuccess('Domain removed');
-          }
-        } catch (e) {
-          showError('Failed to remove from allowlist.');
-        }
-      });
-    });
-  }
-
-  // Detect Safari using feature detection with UA fallback
   function isSafariBrowser() {
     try {
-      // Primary: check for Safari-specific native messaging API
       if (typeof browser !== 'undefined' && typeof browser.runtime?.sendNativeMessage === 'function') {
         return true;
       }
-      // Fallback: UA-based detection
       const ua = navigator.userAgent || '';
       return ua.includes('Safari') && !ua.match(/Chrome|CriOS|Edg|OPR|Brave|Firefox/i);
-    } catch (e) {
+    } catch (error) {
       return false;
     }
   }
 
-  // Initialize popup
-  async function init() {
-    try {
-      // Validate required elements exist
-      if (!enabledToggle || !statusText) {
-        throw new Error('Required popup elements not found');
-      }
+  function sendMessageWithTimeout(message, timeoutMs = 3000) {
+    return Promise.race([
+      chrome.runtime.sendMessage(message),
+      new Promise((_, reject) => setTimeout(() => reject(new Error('Background script timeout')), timeoutMs))
+    ]);
+  }
 
-      // Safari-only guard
-      if (!isSafariBrowser()) {
-        enabledToggle.disabled = true;
-        statusText.textContent = 'Safari only';
-        if (statusDetail) statusDetail.textContent = 'This extension requires Safari';
-        if (statusPill) {
-          statusPill.textContent = 'Unsupported';
-          statusPill.classList.add('inactive');
+  function showToast(message, kind = 'status') {
+    if (!toast) return;
+    toast.textContent = message;
+    toast.hidden = false;
+    toast.className = `toast${kind === 'error' ? ' error' : ''}`;
+    clearTimeout(showToast._timeout);
+    showToast._timeout = setTimeout(() => {
+      toast.hidden = true;
+    }, 2200);
+  }
+
+  function setProtectionUI(state) {
+    dashboardState = state;
+    enabledToggle.checked = !!state.enabled;
+    enabledToggle.setAttribute('aria-checked', state.enabled ? 'true' : 'false');
+
+    summaryTitle.textContent = state.enabled ? 'Protection is active' : 'Protection is paused';
+    summaryDetail.textContent = state.enabled
+      ? 'YouTube links are routing through privacy-enhanced embeds.'
+      : 'Turn protection back on to route YouTube links through privacy-enhanced embeds.';
+
+    statusPill.textContent = state.enabled ? 'Active' : 'Paused';
+    statusPill.className = `pill ${state.enabled ? 'accent' : 'subtle'}`;
+
+    syncPill.textContent = state.lastSyncState || 'Safari unavailable';
+    currentSitePill.textContent = state.currentSite?.displayDomain || 'No YouTube tab';
+  }
+
+  function setStats(state) {
+    todayCountEl.textContent = Number(state.todayCount || 0).toLocaleString();
+    weekCountEl.textContent = Number(state.weekCount || 0).toLocaleString();
+    videoCountEl.textContent = Number(state.videoCount || 0).toLocaleString();
+  }
+
+  function setCurrentSiteUI(currentSite) {
+    if (!currentSite?.domain) {
+      currentSiteDetail.textContent = 'Open a YouTube tab to add a quick exception.';
+      currentSiteButton.disabled = true;
+      currentSiteButton.textContent = 'Bypass this site';
+      currentSitePill.textContent = 'No YouTube tab';
+      return;
+    }
+
+    currentSitePill.textContent = currentSite.displayDomain;
+
+    if (!currentSite.isSupportedDomain) {
+      currentSiteDetail.textContent = 'Quick exceptions only work when the active tab is on a supported YouTube page.';
+      currentSiteButton.disabled = true;
+      currentSiteButton.textContent = 'Bypass this site';
+      return;
+    }
+
+    currentSiteButton.disabled = false;
+    currentSiteButton.textContent = currentSite.isException ? 'Remove site exception' : 'Bypass this site';
+    currentSiteDetail.textContent = currentSite.isException
+      ? `${currentSite.displayDomain} currently stays on YouTube.`
+      : `Add ${currentSite.displayDomain} to trusted exceptions if you need it to stay on YouTube.`;
+  }
+
+  function renderExceptions(exceptions) {
+    const list = Array.isArray(exceptions) ? [...exceptions].sort() : [];
+    exceptionsCount.textContent = `${list.length} saved`;
+    exceptionsList.innerHTML = '';
+
+    if (list.length === 0) {
+      const item = document.createElement('li');
+      item.className = 'empty-state';
+      item.textContent = 'Most people can leave this empty. Add a domain only when you need that site to stay on YouTube.';
+      exceptionsList.appendChild(item);
+      return;
+    }
+
+    list.forEach((domain) => {
+      const item = document.createElement('li');
+      item.className = 'exception-item';
+      item.innerHTML = `
+        <div>
+          <strong>${escapeHTML(domain)}</strong>
+          <span>Keep this site on YouTube instead of routing through embeds.</span>
+        </div>
+        <button type="button" data-domain="${escapeHTML(domain)}">Remove</button>
+      `;
+      exceptionsList.appendChild(item);
+    });
+
+    exceptionsList.querySelectorAll('button[data-domain]').forEach((button) => {
+      button.addEventListener('click', async () => {
+        try {
+          await sendMessageWithTimeout({ action: 'removeFromAllowlist', pattern: button.dataset.domain });
+          await loadDashboardState();
+          showToast('Exception removed');
+        } catch (error) {
+          showToast('Could not remove the exception.', 'error');
         }
-        showError('FreeYT is a Safari-only extension. Install and use it in Safari.');
+      });
+    });
+  }
+
+  function escapeHTML(value) {
+    const div = document.createElement('div');
+    div.textContent = value;
+    return div.innerHTML;
+  }
+
+  function isValidDomain(value) {
+    return /^(\*\.)?[a-zA-Z0-9]([a-zA-Z0-9-]*[a-zA-Z0-9])?(\.[a-zA-Z0-9]([a-zA-Z0-9-]*[a-zA-Z0-9])?)*\.[a-zA-Z]{2,}$/.test(value);
+  }
+
+  async function loadDashboardState() {
+    const state = await sendMessageWithTimeout({ action: 'getDashboardState' });
+    setProtectionUI(state);
+    setStats(state);
+    setCurrentSiteUI(state.currentSite);
+    renderExceptions(state.exceptions || []);
+  }
+
+  async function init() {
+    if (!isSafariBrowser()) {
+      enabledToggle.disabled = true;
+      summaryTitle.textContent = 'Safari only';
+      summaryDetail.textContent = 'FreeYT runs as a Safari extension and needs Safari to protect YouTube privacy.';
+      statusPill.textContent = 'Unsupported';
+      statusPill.className = 'pill subtle';
+      currentSiteButton.disabled = true;
+      showToast('Open FreeYT in Safari to use the extension.', 'error');
+      return;
+    }
+
+    try {
+      await loadDashboardState();
+    } catch (error) {
+      showToast(error.message === 'Background script timeout' ? 'Extension is waking up. Try again.' : 'Could not load FreeYT.', 'error');
+    }
+
+    enabledToggle.addEventListener('change', async () => {
+      const nextValue = enabledToggle.checked;
+      try {
+        await sendMessageWithTimeout({ action: 'setState', enabled: nextValue });
+        await loadDashboardState();
+      } catch (error) {
+        enabledToggle.checked = !nextValue;
+        showToast('Could not change protection state.', 'error');
+      }
+    });
+
+    currentSiteButton.addEventListener('click', async () => {
+      try {
+        const result = await sendMessageWithTimeout({ action: 'toggleCurrentSiteException' });
+        if (!result.success) {
+          throw new Error(result.error || 'No supported site.');
+        }
+        await loadDashboardState();
+        showToast(result.currentSite?.isException ? 'Site added to exceptions' : 'Site exception removed');
+      } catch (error) {
+        showToast(error.message || 'Could not update this site.', 'error');
+      }
+    });
+
+    exceptionsButton.addEventListener('click', () => {
+      exceptionsPanel.hidden = !exceptionsPanel.hidden;
+      exceptionsButton.setAttribute('aria-expanded', exceptionsPanel.hidden ? 'false' : 'true');
+      exceptionsButton.textContent = exceptionsPanel.hidden ? 'Manage exceptions' : 'Hide exceptions';
+    });
+
+    exceptionAdd.addEventListener('click', async () => {
+      const domain = exceptionInput.value.trim().toLowerCase();
+      if (!domain) return;
+      if (!isValidDomain(domain)) {
+        showToast('Use a valid domain like music.youtube.com.', 'error');
         return;
       }
 
-      // Get current state from background
-      const result = await sendMessageWithTimeout({ action: 'getState' });
-      const enabled = result?.enabled ?? true;
-      setStatusUI(enabled);
-
-      // Get and display video count
-      const videoCount = result?.videoCount ?? 0;
-      setVideoCount(videoCount);
-
-      // Get daily stats
       try {
-        const dailyResult = await sendMessageWithTimeout({ action: 'getDailyStats' });
-        setDailyStats(dailyResult?.stats);
-      } catch (e) {
-        console.log('[FreeYT Popup] Daily stats load skipped');
+        await sendMessageWithTimeout({ action: 'addToAllowlist', pattern: domain });
+        exceptionInput.value = '';
+        await loadDashboardState();
+        showToast('Exception added');
+      } catch (error) {
+        showToast('Could not add the exception.', 'error');
       }
+    });
 
-      // Allowlist
+    exceptionInput.addEventListener('keydown', (event) => {
+      if (event.key === 'Enter') {
+        exceptionAdd.click();
+      }
+    });
+
+    refreshButton.addEventListener('click', async () => {
       try {
-        const alResult = await sendMessageWithTimeout({ action: 'getAllowlist' });
-        renderAllowlist(alResult?.allowlist || []);
-      } catch (e) {
-        console.log('[FreeYT Popup] Allowlist load skipped');
+        await sendMessageWithTimeout({ action: 'syncWithNative' });
+        await loadDashboardState();
+        showToast('Dashboard refreshed');
+      } catch (error) {
+        showToast('Could not refresh FreeYT.', 'error');
       }
+    });
 
-      // Allowlist row toggle
-      if (allowlistRow && allowlistPanel) {
-        allowlistRow.addEventListener('click', () => {
-          allowlistPanel.hidden = !allowlistPanel.hidden;
-        });
-      }
-
-      // Allowlist add with validation
-      if (allowlistAddBtn && allowlistInput) {
-        allowlistAddBtn.addEventListener('click', async () => {
-          const pattern = allowlistInput.value.trim();
-          if (!pattern) return;
-
-          if (!isValidDomain(pattern)) {
-            showError('Enter a valid domain (e.g. music.youtube.com)');
-            return;
-          }
-
-          try {
-            // Check entry limit
-            const currentResult = await sendMessageWithTimeout({ action: 'getAllowlist' });
-            const currentList = currentResult?.allowlist || [];
-            if (currentList.length >= MAX_ALLOWLIST) {
-              showError(`Allowlist is full (max ${MAX_ALLOWLIST} domains).`);
-              return;
-            }
-            if (currentList.includes(pattern)) {
-              showError('Domain already in allowlist.');
-              return;
-            }
-
-            const result = await sendMessageWithTimeout({ action: 'addToAllowlist', pattern });
-            if (result?.allowlist) {
-              renderAllowlist(result.allowlist);
-              showSuccess('Domain added');
-            }
-            allowlistInput.value = '';
-          } catch (e) {
-            showError('Failed to add to allowlist.');
-          }
-        });
-
-        allowlistInput.addEventListener('keydown', (e) => {
-          if (e.key === 'Enter') allowlistAddBtn.click();
-        });
-      }
-
-      // Listen for toggle changes
-      enabledToggle.addEventListener('change', async () => {
-        const newState = enabledToggle.checked;
-
-        try {
-          const response = await sendMessageWithTimeout({ action: 'setState', enabled: newState });
-          if (!response?.success) {
-            throw new Error('Background rejected state change');
-          }
-          setStatusUI(newState);
-          console.log('[FreeYT Popup] State changed to:', newState);
-        } catch (error) {
-          console.error('[FreeYT Popup] Failed to save state:', error);
-          if (error.message === 'Background script timeout') {
-            showError('Extension is waking up. Please try again.');
-          } else {
-            showError('Failed to save settings. Please try again.');
-          }
-          // Revert UI to previous state
-          setStatusUI(!newState);
+    dashboardButton.addEventListener('click', async () => {
+      try {
+        const result = await sendMessageWithTimeout({ action: 'openDashboard', section: 'dashboard' });
+        if (!result?.success) {
+          throw new Error(result?.error || 'Could not open FreeYT.');
         }
-      });
-
-      // Refresh state row
-      if (refreshRow) {
-        refreshRow.addEventListener('click', async () => {
-          try {
-            await sendMessageWithTimeout({ action: 'syncWithNative' });
-            const result = await sendMessageWithTimeout({ action: 'getState' });
-            const enabled = result?.enabled ?? true;
-            setStatusUI(enabled);
-            const videoCount = result?.videoCount ?? 0;
-            setVideoCount(videoCount);
-            try {
-              const dailyResult = await sendMessageWithTimeout({ action: 'getDailyStats' });
-              setDailyStats(dailyResult?.stats);
-            } catch (e) { /* skip */ }
-            console.log('[FreeYT Popup] State refreshed, videoCount:', videoCount);
-          } catch (error) {
-            console.error('[FreeYT Popup] Refresh failed:', error);
-            if (error.message === 'Background script timeout') {
-              showError('Extension is waking up. Please try again.');
-            } else {
-              showError('Could not refresh state from Safari.');
-            }
-          }
-        });
+      } catch (error) {
+        showToast('Could not open the FreeYT app.', 'error');
       }
-
-      console.log('[FreeYT Popup] Initialized, current state:', enabled);
-    } catch (error) {
-      console.error('[FreeYT Popup] Initialization error:', error);
-      if (error.message === 'Background script timeout') {
-        showError('Extension is waking up. Please reload the popup.');
-      } else {
-        showError('Failed to initialize extension popup. Please reload.');
-      }
-    }
+    });
   }
 
-  // Start when DOM is ready
   if (document.readyState === 'loading') {
     document.addEventListener('DOMContentLoaded', init);
   } else {
