@@ -846,7 +846,8 @@ struct SharedDashboardStateTests {
             exceptions: ["music.youtube.com"],
             lastProtectedAt: timestamp,
             lastSyncState: .pending,
-            lastSyncTimestamp: timestamp
+            lastSyncTimestamp: timestamp,
+            lastSyncRevision: 7
         )
 
         let snapshot = SharedState.dashboardSnapshot
@@ -856,8 +857,78 @@ struct SharedDashboardStateTests {
         #expect(snapshot.lastProtectedAt == timestamp)
         #expect(snapshot.lastSyncState == .pending)
         #expect(snapshot.lastSyncTimestamp == timestamp)
+        #expect(snapshot.lastSyncRevision == 7)
         #expect(snapshot.recentActivity.first?.host == "music.youtube.com")
         #expect(snapshot.recentActivity.first?.kind == .shortLink)
         #expect(snapshot.exceptions == ["music.youtube.com"])
+    }
+
+    @Test func testLocalDashboardWritesPreserveLastSuccessfulSyncTimestamp() async throws {
+        clearSharedState()
+        let timestamp = Calendar.current.date(byAdding: .hour, value: -2, to: Date())!
+
+        SharedState.mirrorExtensionSnapshot(
+            enabled: true,
+            videoCount: 2,
+            dailyCounts: [DashboardSnapshot.dateKey(for: timestamp): 2],
+            recentActivity: [],
+            exceptions: [],
+            lastProtectedAt: timestamp,
+            lastSyncState: .synced,
+            lastSyncTimestamp: timestamp,
+            lastSyncRevision: 4
+        )
+
+        SharedState.setDashboardState(enabled: false, lastSyncState: .pending)
+        let snapshot = SharedState.dashboardSnapshot
+
+        #expect(snapshot.enabled == false)
+        #expect(snapshot.lastSyncState == .pending)
+        #expect(snapshot.lastSyncTimestamp == timestamp)
+        #expect(snapshot.lastSyncRevision == 4)
+    }
+
+    @Test func testLocalDashboardWritesCanBumpSyncRevisionWithoutOverwritingSyncTimestamp() async throws {
+        clearSharedState()
+        let timestamp = Calendar.current.date(byAdding: .hour, value: -2, to: Date())!
+
+        SharedState.mirrorExtensionSnapshot(
+            enabled: true,
+            videoCount: 2,
+            dailyCounts: [DashboardSnapshot.dateKey(for: timestamp): 2],
+            recentActivity: [],
+            exceptions: [],
+            lastProtectedAt: timestamp,
+            lastSyncState: .synced,
+            lastSyncTimestamp: timestamp,
+            lastSyncRevision: 4
+        )
+
+        SharedState.setDashboardState(enabled: false, lastSyncState: .pending, bumpSyncRevision: true)
+        let snapshot = SharedState.dashboardSnapshot
+
+        #expect(snapshot.enabled == false)
+        #expect(snapshot.lastSyncState == .pending)
+        #expect(snapshot.lastSyncTimestamp == timestamp)
+        #expect(snapshot.lastSyncRevision == 5)
+    }
+
+    @Test func testSharedDashboardStatePostsScopedChangeNotification() async throws {
+        clearSharedState()
+        var notificationCount = 0
+        let observer = NotificationCenter.default.addObserver(
+            forName: .sharedDashboardStateDidChange,
+            object: nil,
+            queue: nil
+        ) { _ in
+            notificationCount += 1
+        }
+        defer {
+            NotificationCenter.default.removeObserver(observer)
+        }
+
+        SharedState.setDashboardState(enabled: false)
+
+        #expect(notificationCount == 1)
     }
 }

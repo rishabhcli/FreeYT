@@ -1,24 +1,35 @@
 import Foundation
 import Combine
 import SwiftUI
-import UIKit
 
 @MainActor
 final class DashboardStore: ObservableObject {
-    static let shared = DashboardStore()
-
-    @Published private(set) var snapshot: DashboardSnapshot = SharedState.dashboardSnapshot
+    @Published private(set) var snapshot: DashboardSnapshot
     @Published var selectedSection: SidebarSection = .overview
 
-    private init() {}
+    private let stateService: any DashboardStateServing
+    private var snapshotObservation: AnyCancellable?
+
+    init(stateService: any DashboardStateServing = SharedDashboardStateService()) {
+        self.stateService = stateService
+        self.snapshot = stateService.snapshot
+        self.snapshotObservation = stateService.snapshotPublisher
+            .receive(on: DispatchQueue.main)
+            .sink { [weak self] snapshot in
+                self?.snapshot = snapshot
+            }
+    }
+
+    var isAppGroupAvailable: Bool {
+        stateService.isAppGroupAvailable
+    }
 
     func refresh() {
-        snapshot = SharedState.dashboardSnapshot
+        snapshot = stateService.snapshot
     }
 
     func setProtectionEnabled(_ enabled: Bool) {
-        SharedState.setDashboardState(enabled: enabled, lastSyncState: .pending)
-        refresh()
+        stateService.updateProtectionEnabled(enabled, lastSyncState: .pending)
     }
 
     func addException(_ domain: String) -> String? {
@@ -36,54 +47,26 @@ final class DashboardStore: ObservableObject {
         }
 
         current.append(normalized)
-        SharedState.setDashboardState(exceptions: current, lastSyncState: .pending)
-        refresh()
+        stateService.updateExceptions(current, lastSyncState: .pending)
         return nil
     }
 
     func removeException(_ domain: String) {
         let next = snapshot.exceptions.filter { $0 != domain }
-        SharedState.setDashboardState(exceptions: next, lastSyncState: .pending)
-        refresh()
+        stateService.updateExceptions(next, lastSyncState: .pending)
     }
 
     func completeOnboarding() {
-        UserDefaults.standard.set(true, forKey: "onboardingCompleted")
+        AppPreferences.setOnboardingCompleted(true)
         selectedSection = .overview
-        refresh()
     }
 
     func handleDeepLink(_ url: URL) {
-        let route = url.pathComponents.dropFirst().first ?? url.host ?? "dashboard"
-        switch route.lowercased() {
-        case "activity":
-            selectedSection = .activity
-        case "exceptions":
-            selectedSection = .exceptions
-        case "trust":
-            selectedSection = .trust
-        case "setup":
-            selectedSection = .setup
-        default:
-            selectedSection = .overview
-        }
-        refresh()
+        selectedSection = DashboardRoute(url: url).section
     }
 
     func openSafariSettings() {
-        let candidates = [
-            "App-Prefs:root=SAFARI&path=WEB_EXTENSIONS",
-            "App-Prefs:root=SAFARI",
-            UIApplication.openSettingsURLString
-        ]
-        for candidate in candidates {
-            guard let url = URL(string: candidate),
-                  UIApplication.shared.canOpenURL(url) else {
-                continue
-            }
-            UIApplication.shared.open(url, options: [:], completionHandler: nil)
-            break
-        }
+        SafariSettingsOpener.open()
     }
 
     private func isValidDomain(_ value: String) -> Bool {

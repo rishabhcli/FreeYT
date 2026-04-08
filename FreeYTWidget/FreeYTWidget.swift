@@ -1,6 +1,20 @@
 import WidgetKit
 import SwiftUI
 
+protocol WidgetStateServing {
+    func currentEntry(at date: Date) -> VideoCountEntry
+}
+
+struct SharedWidgetStateService: WidgetStateServing {
+    func currentEntry(at date: Date) -> VideoCountEntry {
+        VideoCountEntry(
+            date: date,
+            videoCount: SharedState.videoCount,
+            isEnabled: SharedState.isEnabled
+        )
+    }
+}
+
 struct VideoCountEntry: TimelineEntry {
     let date: Date
     let videoCount: Int
@@ -8,25 +22,22 @@ struct VideoCountEntry: TimelineEntry {
 }
 
 struct VideoCountProvider: TimelineProvider {
+    private let stateService: any WidgetStateServing
+
+    init(stateService: any WidgetStateServing = SharedWidgetStateService()) {
+        self.stateService = stateService
+    }
+
     func placeholder(in context: Context) -> VideoCountEntry {
         VideoCountEntry(date: .now, videoCount: 42, isEnabled: true)
     }
 
     func getSnapshot(in context: Context, completion: @escaping (VideoCountEntry) -> Void) {
-        let entry = VideoCountEntry(
-            date: .now,
-            videoCount: SharedState.videoCount,
-            isEnabled: SharedState.isEnabled
-        )
-        completion(entry)
+        completion(stateService.currentEntry(at: .now))
     }
 
     func getTimeline(in context: Context, completion: @escaping (Timeline<VideoCountEntry>) -> Void) {
-        let entry = VideoCountEntry(
-            date: .now,
-            videoCount: SharedState.videoCount,
-            isEnabled: SharedState.isEnabled
-        )
+        let entry = stateService.currentEntry(at: .now)
         let nextUpdate = Calendar.current.date(byAdding: .minute, value: 15, to: .now)!
         let timeline = Timeline(entries: [entry], policy: .after(nextUpdate))
         completion(timeline)
@@ -94,20 +105,28 @@ struct MediumWidgetView: View {
     }
 }
 
+struct WidgetEntryView: View {
+    @Environment(\.widgetFamily) private var widgetFamily
+
+    let entry: VideoCountEntry
+
+    var body: some View {
+        switch widgetFamily {
+        case .systemMedium:
+            MediumWidgetView(entry: entry)
+        default:
+            SmallWidgetView(entry: entry)
+        }
+    }
+}
+
 @main
 struct FreeYTWidget: Widget {
     let kind: String = "FreeYTWidget"
 
     var body: some WidgetConfiguration {
         StaticConfiguration(kind: kind, provider: VideoCountProvider()) { entry in
-            if #available(iOS 17.0, *) {
-                switch entry.date {
-                default:
-                    SmallWidgetView(entry: entry)
-                }
-            } else {
-                SmallWidgetView(entry: entry)
-            }
+            WidgetEntryView(entry: entry)
         }
         .configurationDisplayName("FreeYT Stats")
         .description("Shows your ad-free video count and protection status.")

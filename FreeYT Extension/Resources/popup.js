@@ -21,8 +21,9 @@
   const exceptionAdd = document.getElementById('exceptionAdd');
   const exceptionsList = document.getElementById('exceptionsList');
   const toast = document.getElementById('toast');
-
-  let dashboardState = null;
+  const DOMAIN_PATTERN = /^(\*\.)?[a-zA-Z0-9]([a-zA-Z0-9-]*[a-zA-Z0-9])?(\.[a-zA-Z0-9]([a-zA-Z0-9-]*[a-zA-Z0-9])?)*\.[a-zA-Z]{2,}$/;
+  const MESSAGE_TIMEOUT_MS = 3000;
+  const TOAST_DURATION_MS = 2200;
 
   function isSafariBrowser() {
     try {
@@ -36,7 +37,7 @@
     }
   }
 
-  function sendMessageWithTimeout(message, timeoutMs = 3000) {
+  function sendMessageWithTimeout(message, timeoutMs = MESSAGE_TIMEOUT_MS) {
     return Promise.race([
       chrome.runtime.sendMessage(message),
       new Promise((_, reject) => setTimeout(() => reject(new Error('Background script timeout')), timeoutMs))
@@ -51,11 +52,30 @@
     clearTimeout(showToast._timeout);
     showToast._timeout = setTimeout(() => {
       toast.hidden = true;
-    }, 2200);
+    }, TOAST_DURATION_MS);
+  }
+
+  function setBusyState(control, busy) {
+    if (!control) return;
+    control.disabled = busy;
+    control.setAttribute('aria-busy', busy ? 'true' : 'false');
+  }
+
+  async function runWithBusyState(control, action) {
+    if (!control || control.disabled) {
+      return false;
+    }
+
+    setBusyState(control, true);
+    try {
+      await action();
+      return true;
+    } finally {
+      setBusyState(control, false);
+    }
   }
 
   function setProtectionUI(state) {
-    dashboardState = state;
     enabledToggle.checked = !!state.enabled;
     enabledToggle.setAttribute('aria-checked', state.enabled ? 'true' : 'false');
 
@@ -117,38 +137,49 @@
 
     list.forEach((domain) => {
       const item = document.createElement('li');
+      const content = document.createElement('div');
+      const title = document.createElement('strong');
+      const detail = document.createElement('span');
+      const removeButton = document.createElement('button');
+
       item.className = 'exception-item';
-      item.innerHTML = `
-        <div>
-          <strong>${escapeHTML(domain)}</strong>
-          <span>Keep this site on YouTube instead of routing through embeds.</span>
-        </div>
-        <button type="button" data-domain="${escapeHTML(domain)}">Remove</button>
-      `;
+      title.textContent = domain;
+      detail.textContent = 'Keep this site on YouTube instead of routing through embeds.';
+      content.appendChild(title);
+      content.appendChild(detail);
+
+      removeButton.type = 'button';
+      removeButton.dataset.domain = domain;
+      removeButton.textContent = 'Remove';
+      removeButton.addEventListener('click', async () => {
+        await runWithBusyState(removeButton, async () => {
+          try {
+            const result = await sendMessageWithTimeout({ action: 'removeFromAllowlist', pattern: domain });
+            if (!result?.success) {
+              throw new Error(result?.error || 'Could not remove the exception.');
+            }
+            await loadDashboardState();
+            showToast('Exception removed');
+          } catch (error) {
+            showToast(error.message || 'Could not remove the exception.', 'error');
+          }
+        });
+      });
+
+      item.appendChild(content);
+      item.appendChild(removeButton);
       exceptionsList.appendChild(item);
     });
-
-    exceptionsList.querySelectorAll('button[data-domain]').forEach((button) => {
-      button.addEventListener('click', async () => {
-        try {
-          await sendMessageWithTimeout({ action: 'removeFromAllowlist', pattern: button.dataset.domain });
-          await loadDashboardState();
-          showToast('Exception removed');
-        } catch (error) {
-          showToast('Could not remove the exception.', 'error');
-        }
-      });
-    });
-  }
-
-  function escapeHTML(value) {
-    const div = document.createElement('div');
-    div.textContent = value;
-    return div.innerHTML;
   }
 
   function isValidDomain(value) {
-    return /^(\*\.)?[a-zA-Z0-9]([a-zA-Z0-9-]*[a-zA-Z0-9])?(\.[a-zA-Z0-9]([a-zA-Z0-9-]*[a-zA-Z0-9])?)*\.[a-zA-Z]{2,}$/.test(value);
+    return DOMAIN_PATTERN.test(value);
+  }
+
+  function isSupportedExceptionDomain(value) {
+    return value === 'youtu.be'
+      || value === 'youtube.com'
+      || value.endsWith('.youtube.com');
   }
 
   async function loadDashboardState() {
@@ -179,26 +210,30 @@
 
     enabledToggle.addEventListener('change', async () => {
       const nextValue = enabledToggle.checked;
-      try {
-        await sendMessageWithTimeout({ action: 'setState', enabled: nextValue });
-        await loadDashboardState();
-      } catch (error) {
-        enabledToggle.checked = !nextValue;
-        showToast('Could not change protection state.', 'error');
-      }
+      await runWithBusyState(enabledToggle, async () => {
+        try {
+          await sendMessageWithTimeout({ action: 'setState', enabled: nextValue });
+          await loadDashboardState();
+        } catch (error) {
+          enabledToggle.checked = !nextValue;
+          showToast('Could not change protection state.', 'error');
+        }
+      });
     });
 
     currentSiteButton.addEventListener('click', async () => {
-      try {
-        const result = await sendMessageWithTimeout({ action: 'toggleCurrentSiteException' });
-        if (!result.success) {
-          throw new Error(result.error || 'No supported site.');
+      await runWithBusyState(currentSiteButton, async () => {
+        try {
+          const result = await sendMessageWithTimeout({ action: 'toggleCurrentSiteException' });
+          if (!result.success) {
+            throw new Error(result.error || 'No supported site.');
+          }
+          await loadDashboardState();
+          showToast(result.currentSite?.isException ? 'Site added to exceptions' : 'Site exception removed');
+        } catch (error) {
+          showToast(error.message || 'Could not update this site.', 'error');
         }
-        await loadDashboardState();
-        showToast(result.currentSite?.isException ? 'Site added to exceptions' : 'Site exception removed');
-      } catch (error) {
-        showToast(error.message || 'Could not update this site.', 'error');
-      }
+      });
     });
 
     exceptionsButton.addEventListener('click', () => {
@@ -214,14 +249,31 @@
         showToast('Use a valid domain like music.youtube.com.', 'error');
         return;
       }
+      if (!isSupportedExceptionDomain(domain)) {
+        showToast('Use a supported YouTube domain like music.youtube.com.', 'error');
+        return;
+      }
+
+      const inputWasDisabled = exceptionInput.disabled;
+      setBusyState(exceptionInput, true);
 
       try {
-        await sendMessageWithTimeout({ action: 'addToAllowlist', pattern: domain });
-        exceptionInput.value = '';
-        await loadDashboardState();
-        showToast('Exception added');
-      } catch (error) {
-        showToast('Could not add the exception.', 'error');
+        await runWithBusyState(exceptionAdd, async () => {
+          try {
+            const result = await sendMessageWithTimeout({ action: 'addToAllowlist', pattern: domain });
+            if (!result?.success) {
+              throw new Error(result?.error || 'Could not add the exception.');
+            }
+            exceptionInput.value = '';
+            await loadDashboardState();
+            showToast('Exception added');
+          } catch (error) {
+            showToast(error.message || 'Could not add the exception.', 'error');
+          }
+        });
+      } finally {
+        exceptionInput.disabled = inputWasDisabled;
+        exceptionInput.setAttribute('aria-busy', 'false');
       }
     });
 
@@ -232,24 +284,28 @@
     });
 
     refreshButton.addEventListener('click', async () => {
-      try {
-        await sendMessageWithTimeout({ action: 'syncWithNative' });
-        await loadDashboardState();
-        showToast('Dashboard refreshed');
-      } catch (error) {
-        showToast('Could not refresh FreeYT.', 'error');
-      }
+      await runWithBusyState(refreshButton, async () => {
+        try {
+          await sendMessageWithTimeout({ action: 'syncWithNative' });
+          await loadDashboardState();
+          showToast('Dashboard refreshed');
+        } catch (error) {
+          showToast('Could not refresh FreeYT.', 'error');
+        }
+      });
     });
 
     dashboardButton.addEventListener('click', async () => {
-      try {
-        const result = await sendMessageWithTimeout({ action: 'openDashboard', section: 'dashboard' });
-        if (!result?.success) {
-          throw new Error(result?.error || 'Could not open FreeYT.');
+      await runWithBusyState(dashboardButton, async () => {
+        try {
+          const result = await sendMessageWithTimeout({ action: 'openDashboard', section: 'overview' });
+          if (!result?.success) {
+            throw new Error(result?.error || 'Could not open FreeYT.');
+          }
+        } catch (error) {
+          showToast('Could not open the FreeYT app.', 'error');
         }
-      } catch (error) {
-        showToast('Could not open the FreeYT app.', 'error');
-      }
+      });
     });
   }
 

@@ -231,6 +231,7 @@ describe('background.js dashboard state', () => {
     assert.equal(harness.storageData.enabled, true);
     assert.deepEqual(Array.from(harness.storageData.allowlist ?? []), []);
     assert.ok(typeof harness.storageData.dashboardSyncTimestamp === 'string');
+    assert.equal(harness.storageData.dashboardSyncRevision, 0);
     assert.ok(harness.enabledRulesets.has('ruleset_1'));
   });
 
@@ -287,5 +288,90 @@ describe('background.js dashboard state', () => {
     const listResponse = await sendMessage(harness, { action: 'getAllowlist' });
     assert.deepEqual(Array.from(listResponse.allowlist), ['music.youtube.com']);
     assert.deepEqual(Array.from(listResponse.exceptions), ['music.youtube.com']);
+  });
+
+  it('rejects unsupported manual exceptions before touching storage or rules', async () => {
+    const harness = await loadBackground();
+
+    const response = await sendMessage(harness, {
+      action: 'addToAllowlist',
+      pattern: 'example.com'
+    });
+
+    assert.equal(response.success, false);
+    assert.equal(response.error, 'Use a supported YouTube domain like music.youtube.com.');
+    assert.deepEqual(Array.from(harness.storageData.allowlist ?? []), []);
+    assert.equal(harness.dynamicRules.length, 0);
+  });
+
+  it('does not offer quick exceptions on privacy-enhanced youtube-nocookie pages', async () => {
+    const harness = await loadBackground({
+      activeTabUrl: 'https://www.youtube-nocookie.com/embed/abc123xyz98?autoplay=1'
+    });
+
+    const state = await sendMessage(harness, { action: 'getDashboardState' });
+    assert.equal(state.currentSite.domain, 'www.youtube-nocookie.com');
+    assert.equal(state.currentSite.isSupportedDomain, false);
+
+    const toggle = await sendMessage(harness, { action: 'toggleCurrentSiteException' });
+    assert.equal(toggle.success, false);
+    assert.equal(toggle.error, 'No supported active site found.');
+    assert.deepEqual(Array.from(harness.storageData.allowlist ?? []), []);
+  });
+
+  it('prefers a newer native snapshot when the native revision is higher', async () => {
+    const timestamp = Math.floor(Date.now() / 1000);
+    const today = new Date(timestamp * 1000).toISOString().slice(0, 10);
+    const nativeSnapshot = {
+      enabled: false,
+      videoCount: 5,
+      dailyCounts: { [today]: 5 },
+      recentActivity: [],
+      exceptions: ['music.youtube.com'],
+      lastProtectedAt: timestamp,
+      lastSyncState: 'Synced',
+      lastSyncTimestamp: timestamp,
+      lastSyncRevision: 3
+    };
+
+    const harness = await loadBackground({ nativeSnapshot });
+    const state = await sendMessage(harness, { action: 'getDashboardState' });
+
+    assert.equal(state.enabled, false);
+    assert.equal(state.videoCount, 5);
+    assert.deepEqual(Array.from(state.exceptions), ['music.youtube.com']);
+    assert.equal(state.lastSyncRevision, 3);
+    assert.equal(harness.storageData.dashboardSyncRevision, 3);
+  });
+
+  it('pushes the local snapshot when the local revision is newer than native', async () => {
+    const nativeSnapshot = {
+      enabled: true,
+      videoCount: 0,
+      dailyCounts: {},
+      recentActivity: [],
+      exceptions: [],
+      lastSyncState: 'Synced',
+      lastSyncTimestamp: 0,
+      lastSyncRevision: 0
+    };
+
+    const harness = await loadBackground({ nativeSnapshot });
+    harness.nativeMessages.length = 0;
+
+    await sendMessage(harness, { action: 'setState', enabled: false });
+    nativeSnapshot.enabled = true;
+    nativeSnapshot.lastSyncRevision = 0;
+    nativeSnapshot.lastSyncTimestamp = 0;
+    harness.nativeMessages.length = 0;
+
+    const response = await sendMessage(harness, { action: 'syncWithNative' });
+    const push = harness.nativeMessages.find((message) => message.action === 'syncDashboardState');
+
+    assert.equal(response.success, true);
+    assert.equal(response.state.enabled, false);
+    assert.equal(response.state.lastSyncRevision, 1);
+    assert.equal(push.enabled, false);
+    assert.equal(push.lastSyncRevision, 1);
   });
 });

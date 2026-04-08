@@ -44,14 +44,26 @@ class SafariWebExtensionHandler: NSObject, NSExtensionRequestHandling {
             guard let enabled = message["enabled"] as? Bool else {
                 return ["success": false, "error": "Missing 'enabled' parameter"]
             }
-            SharedState.setDashboardState(enabled: enabled, lastSyncState: .synced)
+            SharedState.setDashboardState(
+                enabled: enabled,
+                lastSyncState: .synced,
+                lastSyncTimestamp: Date(),
+                updateLastSyncTimestamp: true,
+                bumpSyncRevision: true
+            )
             return responsePayload(for: SharedState.dashboardSnapshot, success: true)
 
         case "setExceptions":
             guard let exceptions = decodeArray([String].self, from: message["exceptions"]) else {
                 return ["success": false, "error": "Missing 'exceptions' parameter"]
             }
-            SharedState.setDashboardState(exceptions: exceptions, lastSyncState: .pending)
+            SharedState.setDashboardState(
+                exceptions: exceptions,
+                lastSyncState: .pending,
+                lastSyncTimestamp: Date(),
+                updateLastSyncTimestamp: true,
+                bumpSyncRevision: true
+            )
             return responsePayload(for: SharedState.dashboardSnapshot, success: true)
 
         case "incrementCount":
@@ -72,7 +84,12 @@ class SafariWebExtensionHandler: NSObject, NSExtensionRequestHandling {
 
         case "resetCount":
             SharedState.resetVideoCount()
-            SharedState.setDashboardState(lastSyncState: .synced)
+            SharedState.setDashboardState(
+                lastSyncState: .synced,
+                lastSyncTimestamp: Date(),
+                updateLastSyncTimestamp: true,
+                bumpSyncRevision: true
+            )
             return responsePayload(for: SharedState.dashboardSnapshot, success: true)
 
         case "getDailyStats":
@@ -104,6 +121,7 @@ class SafariWebExtensionHandler: NSObject, NSExtensionRequestHandling {
         let recentActivity = decodeArray([RedirectActivity].self, from: message["recentActivity"]) ?? snapshot.recentActivity
         let syncState = SyncHealth(rawValue: (message["lastSyncState"] as? String) ?? "") ?? .synced
         let syncTimestamp = decodeDate(from: message["lastSyncTimestamp"]) ?? Date()
+        let syncRevision = decodeInt(from: message["lastSyncRevision"]) ?? snapshot.lastSyncRevision
         let lastProtectedAt = decodeDate(from: message["lastProtectedAt"]) ?? snapshot.lastProtectedAt
 
         SharedState.mirrorExtensionSnapshot(
@@ -114,7 +132,8 @@ class SafariWebExtensionHandler: NSObject, NSExtensionRequestHandling {
             exceptions: exceptions,
             lastProtectedAt: lastProtectedAt,
             lastSyncState: syncState,
-            lastSyncTimestamp: syncTimestamp
+            lastSyncTimestamp: syncTimestamp,
+            lastSyncRevision: syncRevision
         )
     }
 
@@ -129,6 +148,7 @@ class SafariWebExtensionHandler: NSObject, NSExtensionRequestHandling {
             "lastProtectedAt": snapshot.lastProtectedAt?.timeIntervalSince1970 as Any,
             "lastSyncState": snapshot.lastSyncState.rawValue,
             "lastSyncTimestamp": snapshot.lastSyncTimestamp?.timeIntervalSince1970 as Any,
+            "lastSyncRevision": snapshot.lastSyncRevision,
             "isAppGroupAvailable": SharedState.isAppGroupAvailable
         ]
     }
@@ -199,6 +219,16 @@ class SafariWebExtensionHandler: NSObject, NSExtensionRequestHandling {
         }
         if let value = value as? Int {
             return Date(timeIntervalSince1970: TimeInterval(value))
+        }
+        return nil
+    }
+
+    private func decodeInt(from value: Any?) -> Int? {
+        if let value = value as? Int {
+            return value
+        }
+        if let value = value as? Double, value.isFinite {
+            return Int(value)
         }
         return nil
     }

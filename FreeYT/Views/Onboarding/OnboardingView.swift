@@ -1,5 +1,4 @@
 import SwiftUI
-import UIKit
 
 struct OnboardingView: View {
     @State private var currentPage = 0
@@ -141,23 +140,11 @@ struct OnboardingView: View {
     }
 
     private func completeOnboarding() {
-        UserDefaults.standard.set(true, forKey: "onboardingCompleted")
+        AppPreferences.setOnboardingCompleted(true)
         onComplete()
     }
 
     private func openSafariSettings() {
-        let candidates = [
-            "App-Prefs:root=SAFARI&path=WEB_EXTENSIONS",
-            "App-Prefs:root=SAFARI",
-            UIApplication.openSettingsURLString
-        ]
-        for candidate in candidates {
-            guard let url = URL(string: candidate),
-                  UIApplication.shared.canOpenURL(url) else {
-                continue
-            }
-            UIApplication.shared.open(url, options: [:], completionHandler: nil)
-            break
-        }
+        SafariSettingsOpener.open()
     }
 }

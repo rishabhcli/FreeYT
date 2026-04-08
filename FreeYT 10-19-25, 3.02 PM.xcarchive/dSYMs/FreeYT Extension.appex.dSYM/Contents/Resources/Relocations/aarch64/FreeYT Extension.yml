@@ -1,9 +1,0 @@
----
-triple:          'arm64-apple-darwin'
-binary-path:     '/Users/rishabhbansal/Library/Developer/Xcode/DerivedData/FreeYT-ddxmblpguykadlazceszikzdxovi/Build/Intermediates.noindex/ArchiveIntermediates/FreeYT/IntermediateBuildFilesPath/UninstalledProducts/iphoneos/FreeYT Extension.appex/FreeYT Extension'
-relocations:
-  - { offset: 0x2927F, size: 0x8, addend: 0x0, symName: '_$s16FreeYT_Extension09SafariWebC18HandlerPlaceholderCACycfcTo', symObjAddr: 0x0, symBinAddr: 0x100004000, symSize: 0x3C }
-  - { offset: 0x292E4, size: 0x8, addend: 0x0, symName: '_$s16FreeYT_Extension09SafariWebC18HandlerPlaceholderCMa', symObjAddr: 0x6C, symBinAddr: 0x10000406C, symSize: 0x20 }
-  - { offset: 0x29312, size: 0x8, addend: 0x0, symName: '_$s16FreeYT_Extension09SafariWebC18HandlerPlaceholderCACycfcTo', symObjAddr: 0x0, symBinAddr: 0x100004000, symSize: 0x3C }
-  - { offset: 0x2934E, size: 0x8, addend: 0x0, symName: '_$s16FreeYT_Extension09SafariWebC18HandlerPlaceholderCfD', symObjAddr: 0x3C, symBinAddr: 0x10000403C, symSize: 0x30 }
-...

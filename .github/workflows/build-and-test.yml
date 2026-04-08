@@ -2,357 +2,226 @@ name: Build and Test
 
 on:
   push:
-    branches: [ main, develop, 'claude/**' ]
+    branches: [main, develop, "claude/**"]
   pull_request:
-    branches: [ main, develop ]
+    branches: [main, develop]
   workflow_dispatch:
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
 
 jobs:
   build-ios:
     name: Build iOS App
-    runs-on: macos-14
+    runs-on: macos-15
 
     steps:
-    - name: Checkout code
-      uses: actions/checkout@v4
+      - name: Checkout code
+        uses: actions/checkout@v4
 
-    - name: Setup Xcode
-      uses: maxim-lobanov/setup-xcode@v1
-      with:
-        xcode-version: '15.4'
+      - name: Setup Xcode
+        uses: maxim-lobanov/setup-xcode@v1
+        with:
+          xcode-version: latest-stable
 
-    - name: Show Xcode version
-      run: xcodebuild -version
+      - name: Show Xcode version
+        run: xcodebuild -version
 
-    - name: Show available destinations
-      run: xcodebuild -project FreeYT.xcodeproj -scheme FreeYT -showdestinations
+      - name: Show available destinations
+        run: xcodebuild -project FreeYT.xcodeproj -scheme FreeYT -showdestinations
 
-    - name: Build for iOS Simulator
-      run: |
-        xcodebuild clean build \
-          -project FreeYT.xcodeproj \
-          -scheme FreeYT \
-          -destination 'platform=iOS Simulator,name=iPhone 15' \
-          -configuration Debug \
-          CODE_SIGN_IDENTITY="" \
-          CODE_SIGNING_REQUIRED=NO \
-          | xcpretty || exit 1
+      - name: Build for iOS Simulator
+        run: |
+          set -euo pipefail
+          mkdir -p TestResults
+          xcodebuild clean build \
+            -project FreeYT.xcodeproj \
+            -scheme FreeYT \
+            -destination 'platform=iOS Simulator,name=iPhone 17,OS=latest' \
+            -configuration Debug \
+            -resultBundlePath TestResults/ios-build.xcresult \
+            CODE_SIGN_IDENTITY="" \
+            CODE_SIGNING_REQUIRED=NO
 
-    - name: Archive build artifacts
-      if: always()
-      uses: actions/upload-artifact@v4
-      with:
-        name: ios-build-logs
-        path: |
-          ~/Library/Logs/DiagnosticReports
-          DerivedData/Logs
-        retention-days: 5
-        if-no-files-found: ignore
+      - name: Upload build artifacts
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: ios-build-results
+          path: |
+            TestResults/ios-build.xcresult
+            ~/Library/Logs/DiagnosticReports
+          retention-days: 5
+          if-no-files-found: ignore
+
+  build-catalyst:
+    name: Build Mac Catalyst App
+    runs-on: macos-15
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Setup Xcode
+        uses: maxim-lobanov/setup-xcode@v1
+        with:
+          xcode-version: latest-stable
+
+      - name: Build for Mac Catalyst
+        run: |
+          set -euo pipefail
+          mkdir -p TestResults
+          xcodebuild clean build \
+            -project FreeYT.xcodeproj \
+            -scheme FreeYT \
+            -destination 'platform=macOS,variant=Mac Catalyst' \
+            -configuration Debug \
+            -resultBundlePath TestResults/catalyst-build.xcresult \
+            CODE_SIGN_IDENTITY="" \
+            CODE_SIGNING_REQUIRED=NO
+
+      - name: Upload Catalyst build artifacts
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: catalyst-build-results
+          path: TestResults/catalyst-build.xcresult
+          retention-days: 5
+          if-no-files-found: ignore
 
   test:
-    name: Run Tests
-    runs-on: macos-14
+    name: Run Swift Tests
+    runs-on: macos-15
 
     steps:
-    - name: Checkout code
-      uses: actions/checkout@v4
+      - name: Checkout code
+        uses: actions/checkout@v4
 
-    - name: Setup Xcode
-      uses: maxim-lobanov/setup-xcode@v1
-      with:
-        xcode-version: '15.4'
+      - name: Setup Xcode
+        uses: maxim-lobanov/setup-xcode@v1
+        with:
+          xcode-version: latest-stable
 
-    - name: Run unit tests
-      run: |
-        xcodebuild test \
-          -project FreeYT.xcodeproj \
-          -scheme FreeYT \
-          -destination 'platform=iOS Simulator,name=iPhone 15' \
-          -configuration Debug \
-          CODE_SIGN_IDENTITY="" \
-          CODE_SIGNING_REQUIRED=NO \
-          | xcpretty || exit 1
+      - name: Run unit tests
+        run: |
+          set -euo pipefail
+          mkdir -p TestResults
+          xcodebuild test \
+            -project FreeYT.xcodeproj \
+            -scheme FreeYT \
+            -destination 'platform=iOS Simulator,name=iPhone 17,OS=latest' \
+            -configuration Debug \
+            -resultBundlePath TestResults/swift-tests.xcresult \
+            CODE_SIGN_IDENTITY="" \
+            CODE_SIGNING_REQUIRED=NO
 
-    - name: Upload test results
-      if: always()
-      uses: actions/upload-artifact@v4
-      with:
-        name: test-results
-        path: |
-          ~/Library/Developer/Xcode/DerivedData/**/Logs/Test
-          TestResults
-        retention-days: 14
-        if-no-files-found: ignore
+      - name: Upload test results
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: swift-test-results
+          path: TestResults/swift-tests.xcresult
+          retention-days: 14
+          if-no-files-found: ignore
 
-  lint:
-    name: Lint and Validate
+  extension-tests:
+    name: Run Extension Tests
     runs-on: ubuntu-latest
 
     steps:
-    - name: Checkout code
-      uses: actions/checkout@v4
+      - name: Checkout code
+        uses: actions/checkout@v4
 
-    - name: Validate manifest.json
-      run: |
-        echo "Validating manifest.json..."
-        if jq empty "FreeYT Extension/Resources/manifest.json" 2>/dev/null; then
-          echo "✓ manifest.json is valid JSON"
-        else
-          echo "✗ manifest.json is invalid JSON"
-          exit 1
-        fi
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+          cache-dependency-path: FreeYT Extension/Tests/package-lock.json
 
-    - name: Validate rules.json
-      run: |
-        echo "Validating rules.json..."
-        if jq empty "FreeYT Extension/Resources/rules.json" 2>/dev/null; then
-          echo "✓ rules.json is valid JSON"
-        else
-          echo "✗ rules.json is invalid JSON"
-          exit 1
-        fi
+      - name: Install extension test dependencies
+        working-directory: FreeYT Extension/Tests
+        run: npm ci
 
-    - name: Validate messages.json
-      run: |
-        echo "Validating messages.json..."
-        if jq empty "FreeYT Extension/Resources/_locales/en/messages.json" 2>/dev/null; then
-          echo "✓ messages.json is valid JSON"
-        else
-          echo "✗ messages.json is invalid JSON"
-          exit 1
-        fi
+      - name: Run extension test suite
+        working-directory: FreeYT Extension/Tests
+        run: npm test
 
-    - name: Check for TODOs and FIXMEs
-      run: |
-        echo "Checking for TODOs and FIXMEs..."
-        if grep -r "TODO\|FIXME" --include="*.swift" --include="*.js" FreeYT* || true; then
-          echo "Found TODOs or FIXMEs in code (informational only)"
-        fi
-
-    - name: Verify required files exist
-      run: |
-        echo "Verifying required files..."
-        files=(
-          "FreeYT Extension/Resources/manifest.json"
-          "FreeYT Extension/Resources/rules.json"
-          "FreeYT Extension/Resources/background.js"
-          "FreeYT Extension/Resources/popup.html"
-          "FreeYT Extension/Resources/popup.js"
-          "FreeYT Extension/Resources/popup.css"
-          "FreeYT Extension/Resources/_locales/en/messages.json"
-          "PRIVACY.md"
-          "README.md"
-        )
-
-        all_exist=true
-        for file in "${files[@]}"; do
-          if [ -f "$file" ]; then
-            echo "✓ $file exists"
-          else
-            echo "✗ $file is missing"
-            all_exist=false
-          fi
-        done
-
-        if [ "$all_exist" = false ]; then
-          exit 1
-        fi
-
-    - name: Check for sensitive data
-      run: |
-        echo "Checking for potential sensitive data..."
-        if grep -r "password\|secret\|api_key\|private_key" --include="*.swift" --include="*.js" FreeYT* || true; then
-          echo "Found potential sensitive data patterns (review manually)"
-        else
-          echo "✓ No obvious sensitive data patterns found"
-        fi
-
-    - name: Validate bundle identifiers
-      run: |
-        echo "Checking bundle identifier consistency..."
-        if grep -l "com.freeyt.app" FreeYT/Info.plist "FreeYT Extension/Info.plist"; then
-          echo "✓ Bundle identifiers found in plist files"
-        else
-          echo "✗ Bundle identifiers not found"
-          exit 1
-        fi
-
-  extension-validation:
-    name: Validate Extension Structure
+  validate:
+    name: Validate Repository
     runs-on: ubuntu-latest
 
     steps:
-    - name: Checkout code
-      uses: actions/checkout@v4
+      - name: Checkout code
+        uses: actions/checkout@v4
 
-    - name: Validate manifest version
-      run: |
-        manifest_version=$(jq -r '.manifest_version' "FreeYT Extension/Resources/manifest.json")
-        if [ "$manifest_version" = "3" ]; then
-          echo "✓ Using Manifest V3"
-        else
-          echo "✗ Not using Manifest V3"
-          exit 1
-        fi
-
-    - name: Verify content_scripts only target youtube-nocookie.com
-      run: |
-        if jq -e '.content_scripts' "FreeYT Extension/Resources/manifest.json" > /dev/null 2>&1; then
-          # Content scripts exist — verify they ONLY target youtube-nocookie.com
-          bad=$(jq -r '.content_scripts[].matches[]' "FreeYT Extension/Resources/manifest.json" | grep -v 'youtube-nocookie' || true)
-          if [ -n "$bad" ]; then
-            echo "✗ content_scripts target non-nocookie domains: $bad"
-            exit 1
-          else
-            echo "✓ content_scripts only target youtube-nocookie.com (banner script)"
-          fi
-        else
-          echo "✓ No content_scripts in manifest"
-        fi
-
-    - name: Validate redirect rules
-      run: |
-        echo "Validating redirect rules..."
-        rules_count=$(jq 'length' "FreeYT Extension/Resources/rules.json")
-        echo "Found $rules_count redirect rules"
-
-        # Check that rules redirect to youtube-nocookie.com
-        if jq -e '.[].action.redirect.regexSubstitution | test("youtube-nocookie")' "FreeYT Extension/Resources/rules.json" > /dev/null; then
-          echo "✓ Rules redirect to youtube-nocookie.com"
-        else
-          echo "✗ Rules do not redirect to youtube-nocookie.com"
-          exit 1
-        fi
-
-    - name: Check for required permissions
-      run: |
-        echo "Checking required permissions..."
-        required_perms=("declarativeNetRequest" "storage")
-
-        for perm in "${required_perms[@]}"; do
-          if jq -e ".permissions | index(\"$perm\")" "FreeYT Extension/Resources/manifest.json" > /dev/null; then
-            echo "✓ Permission '$perm' found"
-          else
-            echo "✗ Permission '$perm' missing"
-            exit 1
-          fi
-        done
-
-    - name: Validate icon paths
-      run: |
-        echo "Checking icon paths in manifest..."
-        if jq -e '.icons."48"' "FreeYT Extension/Resources/manifest.json" > /dev/null; then
-          echo "✓ Extension icons configured"
-        else
-          echo "✗ Extension icons not configured"
-          exit 1
-        fi
-
-  security-check:
-    name: Security Scan
-    runs-on: ubuntu-latest
-
-    steps:
-    - name: Checkout code
-      uses: actions/checkout@v4
-
-    - name: Check for hardcoded secrets
-      run: |
-        echo "Scanning for potential hardcoded secrets..."
-        if grep -r "password\s*=\|api_key\s*=\|secret\s*=\|token\s*=" --include="*.swift" --include="*.js" FreeYT* || true; then
-          echo "⚠ Found potential hardcoded secrets (review manually)"
-        else
-          echo "✓ No obvious hardcoded secrets found"
-        fi
-
-    - name: Check permissions are minimal
-      run: |
-        echo "Verifying minimal permissions..."
-        perm_count=$(jq '.permissions | length' "FreeYT Extension/Resources/manifest.json")
-        echo "Extension requests $perm_count permissions"
-
-        if [ "$perm_count" -le 3 ]; then
-          echo "✓ Permission count is minimal ($perm_count <= 3)"
-        else
-          echo "⚠ Extension requests many permissions ($perm_count)"
-        fi
-
-    - name: Verify no eval usage
-      run: |
-        echo "Checking for dangerous eval() usage..."
-        if grep -r "eval(" --include="*.js" "FreeYT Extension" || true; then
-          echo "⚠ Found eval() usage (potential security risk)"
-        else
-          echo "✓ No eval() usage found"
-        fi
-
-    - name: Check Content Security Policy
-      run: |
-        echo "Checking for CSP in HTML files..."
-        if grep -r "Content-Security-Policy" --include="*.html" FreeYT* | head -n 5; then
-          echo "✓ Found CSP headers"
-        else
-          echo "⚠ No CSP headers found in HTML files"
-        fi
+      - name: Run repository validation
+        run: .github/scripts/validate-repo.sh
 
   screenshots:
     name: Generate Screenshots
-    runs-on: macos-14
+    runs-on: macos-15
     if: github.event_name == 'workflow_dispatch'
 
     steps:
-    - name: Checkout code
-      uses: actions/checkout@v4
+      - name: Checkout code
+        uses: actions/checkout@v4
 
-    - name: Setup Xcode
-      uses: maxim-lobanov/setup-xcode@v1
-      with:
-        xcode-version: '15.4'
+      - name: Setup Xcode
+        uses: maxim-lobanov/setup-xcode@v1
+        with:
+          xcode-version: latest-stable
 
-    - name: Run screenshot tests
-      run: |
-        xcodebuild test \
-          -project FreeYT.xcodeproj \
-          -scheme FreeYT \
-          -destination 'platform=iOS Simulator,name=iPhone 15' \
-          -only-testing:FreeYTUITests/ScreenshotTests \
-          -configuration Debug \
-          CODE_SIGN_IDENTITY="" \
-          CODE_SIGNING_REQUIRED=NO \
-          | xcpretty || true
+      - name: Run screenshot tests
+        run: |
+          set -euo pipefail
+          mkdir -p TestResults
+          xcodebuild test \
+            -project FreeYT.xcodeproj \
+            -scheme FreeYT \
+            -destination 'platform=iOS Simulator,name=iPhone 17,OS=latest' \
+            -only-testing:FreeYTUITests/ScreenshotTests \
+            -configuration Debug \
+            -resultBundlePath TestResults/screenshots.xcresult \
+            CODE_SIGN_IDENTITY="" \
+            CODE_SIGNING_REQUIRED=NO || true
 
-    - name: Collect screenshots
-      if: always()
-      uses: actions/upload-artifact@v4
-      with:
-        name: app-screenshots
-        path: |
-          ~/Library/Developer/Xcode/DerivedData/**/Attachments
-          ~/Library/Developer/Xcode/DerivedData/**/Logs/Test
-        retention-days: 30
-        if-no-files-found: ignore
+      - name: Collect screenshots
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: app-screenshots
+          path: |
+            TestResults/screenshots.xcresult
+            ~/Library/Developer/Xcode/DerivedData/**/Attachments
+          retention-days: 30
+          if-no-files-found: ignore
 
   summary:
     name: Build Summary
-    needs: [build-ios, test, lint, extension-validation, security-check]
+    needs: [build-ios, build-catalyst, test, extension-tests, validate]
     runs-on: ubuntu-latest
     if: always()
 
     steps:
-    - name: Check build status
-      run: |
-        echo "Build Summary:"
-        echo "- iOS Build: ${{ needs.build-ios.result }}"
-        echo "- Tests: ${{ needs.test.result }}"
-        echo "- Linting: ${{ needs.lint.result }}"
-        echo "- Extension Validation: ${{ needs.extension-validation.result }}"
-        echo "- Security Check: ${{ needs.security-check.result }}"
+      - name: Check build status
+        run: |
+          echo "Build Summary:"
+          echo "- iOS Build: ${{ needs.build-ios.result }}"
+          echo "- Catalyst Build: ${{ needs.build-catalyst.result }}"
+          echo "- Swift Tests: ${{ needs.test.result }}"
+          echo "- Extension Tests: ${{ needs.extension-tests.result }}"
+          echo "- Validation: ${{ needs.validate.result }}"
 
-        if [ "${{ needs.build-ios.result }}" == "success" ] && \
-           [ "${{ needs.test.result }}" == "success" ]; then
-          echo "✓ All critical checks passed!"
-          exit 0
-        else
-          echo "✗ Some checks failed"
+          if [ "${{ needs.build-ios.result }}" = "success" ] && \
+             [ "${{ needs.build-catalyst.result }}" = "success" ] && \
+             [ "${{ needs.test.result }}" = "success" ] && \
+             [ "${{ needs.extension-tests.result }}" = "success" ] && \
+             [ "${{ needs.validate.result }}" = "success" ]; then
+            echo "✓ All critical checks passed"
+            exit 0
+          fi
+
+          echo "✗ One or more checks failed"
           exit 1
-        fi

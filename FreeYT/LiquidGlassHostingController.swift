@@ -20,8 +20,9 @@ final class LiquidGlassHostingController: UIHostingController<LiquidGlassView> {
         setupAppearance()
     }
 
+    @available(*, unavailable, message: "Use init(store:) instead.")
     @objc required dynamic init?(coder aDecoder: NSCoder) {
-        fatalError("init(coder:) has not been implemented")
+        nil
     }
 
     private func setupAppearance() {

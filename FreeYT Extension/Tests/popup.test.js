@@ -21,8 +21,9 @@ async function settle() {
 function createElement(id = '') {
   const listeners = {};
   const attributes = {};
+  let innerHTML = '';
 
-  return {
+  const element = {
     id,
     hidden: false,
     disabled: false,
@@ -30,7 +31,6 @@ function createElement(id = '') {
     className: '',
     value: '',
     textContent: '',
-    innerHTML: '',
     children: [],
     dataset: {},
     listeners,
@@ -39,6 +39,9 @@ function createElement(id = '') {
     },
     getAttribute(name) {
       return attributes[name] ?? null;
+    },
+    removeAttribute(name) {
+      delete attributes[name];
     },
     addEventListener(name, callback) {
       if (!listeners[name]) {
@@ -54,21 +57,40 @@ function createElement(id = '') {
       return [];
     },
     async click() {
+      if (this.disabled) {
+        return;
+      }
       for (const callback of listeners.click ?? []) {
         await callback({ currentTarget: this });
       }
     },
     async keydown(key) {
+      if (this.disabled) {
+        return;
+      }
       for (const callback of listeners.keydown ?? []) {
         await callback({ key, currentTarget: this });
       }
     }
   };
+
+  Object.defineProperty(element, 'innerHTML', {
+    get() {
+      return innerHTML;
+    },
+    set(value) {
+      innerHTML = value;
+      this.children = [];
+    }
+  });
+
+  return element;
 }
 
 function createPopupHarness({
   safari = true,
-  stateOverrides = {}
+  stateOverrides = {},
+  messageHandlers = {}
 } = {}) {
   const elements = {
     enabledToggle: createElement('enabledToggle'),
@@ -120,6 +142,11 @@ function createPopupHarness({
       async sendMessage(message) {
         messages.push(message);
 
+        const customHandler = messageHandlers[message.action];
+        if (customHandler) {
+          return customHandler(message, dashboardState);
+        }
+
         switch (message.action) {
           case 'getDashboardState':
             return { ...dashboardState };
@@ -146,6 +173,12 @@ function createPopupHarness({
             dashboardState = {
               ...dashboardState,
               exceptions: Array.from(new Set([...dashboardState.exceptions, message.pattern])).sort()
+            };
+            return { success: true, exceptions: dashboardState.exceptions };
+          case 'removeFromAllowlist':
+            dashboardState = {
+              ...dashboardState,
+              exceptions: dashboardState.exceptions.filter((domain) => domain !== message.pattern)
             };
             return { success: true, exceptions: dashboardState.exceptions };
           case 'syncWithNative':
@@ -188,6 +221,16 @@ function createPopupHarness({
   return { elements, messages };
 }
 
+function createDeferred() {
+  let resolve;
+  let reject;
+  const promise = new Promise((nextResolve, nextReject) => {
+    resolve = nextResolve;
+    reject = nextReject;
+  });
+  return { promise, resolve, reject };
+}
+
 describe('popup.js dashboard interactions', () => {
   it('renders the active protection summary, stats, and quick action labels', async () => {
     const harness = createPopupHarness();
@@ -228,6 +271,22 @@ describe('popup.js dashboard interactions', () => {
     assert.equal(harness.elements.toast.className, 'toast error');
   });
 
+  it('rejects non-YouTube exception domains before messaging the background worker', async () => {
+    const harness = createPopupHarness();
+    await settle();
+
+    harness.elements.exceptionInput.value = 'example.com';
+    await harness.elements.exceptionAdd.click();
+
+    assert.equal(
+      harness.messages.some((message) => message.action === 'addToAllowlist'),
+      false
+    );
+    assert.equal(harness.elements.toast.hidden, false);
+    assert.equal(harness.elements.toast.textContent, 'Use a supported YouTube domain like music.youtube.com.');
+    assert.equal(harness.elements.toast.className, 'toast error');
+  });
+
   it('sends the quick current-site exception action and updates the toast copy', async () => {
     const harness = createPopupHarness();
     await settle();
@@ -243,6 +302,29 @@ describe('popup.js dashboard interactions', () => {
     assert.equal(harness.elements.toast.textContent, 'Site added to exceptions');
   });
 
+  it('renders remove buttons for saved exceptions and removes them through the background contract', async () => {
+    const harness = createPopupHarness({
+      stateOverrides: {
+        exceptions: ['music.youtube.com']
+      }
+    });
+    await settle();
+
+    const removeButton = harness.elements.exceptionsList.children[0]?.children[1];
+    assert.ok(removeButton);
+
+    await removeButton.click();
+    await settle();
+
+    assert.equal(
+      harness.messages.some(
+        (message) => message.action === 'removeFromAllowlist' && message.pattern === 'music.youtube.com'
+      ),
+      true
+    );
+    assert.equal(harness.elements.toast.textContent, 'Exception removed');
+  });
+
   it('blocks the popup outside Safari and surfaces the guard copy', async () => {
     const harness = createPopupHarness({ safari: false });
     await settle();
@@ -254,5 +336,51 @@ describe('popup.js dashboard interactions', () => {
       'FreeYT runs as a Safari extension and needs Safari to protect YouTube privacy.'
     );
     assert.equal(harness.elements.statusPill.textContent, 'Unsupported');
+  });
+
+  it('opens the native dashboard on the overview route', async () => {
+    const harness = createPopupHarness();
+    await settle();
+
+    await harness.elements.dashboardButton.click();
+
+    const [message] = harness.messages.filter((entry) => entry.action === 'openDashboard');
+    assert.ok(message);
+    assert.equal(message.action, 'openDashboard');
+    assert.equal(message.section, 'overview');
+  });
+
+  it('disables refresh while a sync request is in flight so duplicate clicks do not queue', async () => {
+    const refreshRequest = createDeferred();
+    const harness = createPopupHarness({
+      messageHandlers: {
+        syncWithNative() {
+          return refreshRequest.promise;
+        }
+      }
+    });
+    await settle();
+
+    const firstClick = harness.elements.refreshButton.click();
+    await flushPromises();
+
+    assert.equal(harness.elements.refreshButton.disabled, true);
+    assert.equal(harness.elements.refreshButton.getAttribute('aria-busy'), 'true');
+
+    const secondClick = harness.elements.refreshButton.click();
+    await flushPromises();
+
+    assert.equal(
+      harness.messages.filter((message) => message.action === 'syncWithNative').length,
+      1
+    );
+
+    refreshRequest.resolve({ success: true, state: {} });
+    await firstClick;
+    await secondClick;
+    await settle();
+
+    assert.equal(harness.elements.refreshButton.disabled, false);
+    assert.equal(harness.elements.refreshButton.getAttribute('aria-busy'), 'false');
   });
 });

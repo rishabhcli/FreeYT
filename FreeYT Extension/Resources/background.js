@@ -8,11 +8,15 @@ const RECENT_ACTIVITY_KEY = 'recentActivity';
 const LAST_PROTECTED_AT_KEY = 'lastProtectedAt';
 const LAST_SYNC_TIMESTAMP_KEY = 'dashboardSyncTimestamp';
 const LAST_SYNC_STATE_KEY = 'lastSyncState';
+const LAST_SYNC_REVISION_KEY = 'dashboardSyncRevision';
 
 const RULESET_ID = 'ruleset_1';
 const DAILY_COUNT_PREFIX = 'count_';
 const ALLOWLIST_RULE_BASE = 1000;
+const DASHBOARD_STATS_WINDOW_DAYS = 7;
+const DAILY_STATS_RETENTION_DAYS = 90;
 const MAX_RECENT_ACTIVITY = 12;
+const DOMAIN_PATTERN = /^(\*\.)?[a-zA-Z0-9]([a-zA-Z0-9-]*[a-zA-Z0-9])?(\.[a-zA-Z0-9]([a-zA-Z0-9-]*[a-zA-Z0-9])?)*\.[a-zA-Z]{2,}$/;
 
 const SYNC_STATES = {
   synced: 'Synced',
@@ -31,6 +35,39 @@ function todayKey(date = new Date()) {
 
 function normalizeDomain(domain) {
   return String(domain || '').trim().toLowerCase();
+}
+
+function isValidDomain(domain) {
+  return DOMAIN_PATTERN.test(normalizeDomain(domain));
+}
+
+function isSupportedExceptionDomain(domain) {
+  const normalized = normalizeDomain(domain);
+  return normalized === 'youtu.be'
+    || normalized === 'youtube.com'
+    || normalized.endsWith('.youtube.com');
+}
+
+function validateExceptionDomain(domain) {
+  const normalized = normalizeDomain(domain);
+
+  if (!normalized || !isValidDomain(normalized)) {
+    return { error: 'Use a valid domain like music.youtube.com.' };
+  }
+
+  if (!isSupportedExceptionDomain(normalized)) {
+    return { error: 'Use a supported YouTube domain like music.youtube.com.' };
+  }
+
+  return { domain: normalized };
+}
+
+function normalizeExceptions(domains) {
+  return Array.from(new Set(
+    domains
+      .map((domain) => validateExceptionDomain(domain).domain)
+      .filter(Boolean)
+  )).sort();
 }
 
 function displayHost(hostname) {
@@ -70,6 +107,11 @@ function toIsoString(value) {
   return null;
 }
 
+function toRevision(value) {
+  const revision = Number(value);
+  return Number.isInteger(revision) && revision >= 0 ? revision : 0;
+}
+
 function createActivity(url, timestampMs = Date.now()) {
   const host = displayHost(extractHost(url));
   const seconds = Math.floor(timestampMs / 1000);
@@ -105,6 +147,11 @@ async function getRecentActivity() {
   return result[RECENT_ACTIVITY_KEY] ?? [];
 }
 
+async function getSyncRevision() {
+  const result = await chrome.storage.local.get(LAST_SYNC_REVISION_KEY);
+  return toRevision(result[LAST_SYNC_REVISION_KEY]);
+}
+
 async function getDailyStats(days = 7) {
   const keys = [];
   for (let i = 0; i < days; i += 1) {
@@ -134,7 +181,7 @@ async function getCurrentSiteInfo() {
     const url = new URL(tab.url);
     const domain = normalizeDomain(url.hostname);
     const allowlist = await getAllowlist();
-    const supported = /youtube\.com$|youtu\.be$|youtube-nocookie\.com$/.test(domain);
+    const supported = isSupportedExceptionDomain(domain);
 
     return {
       domain,
@@ -148,11 +195,17 @@ async function getCurrentSiteInfo() {
   }
 }
 
-async function updateLocalSyncState(state, timestamp = nowIso()) {
-  await chrome.storage.local.set({
+async function updateLocalSyncState(state, timestamp = nowIso(), revision = null) {
+  const payload = {
     [LAST_SYNC_STATE_KEY]: state,
     [LAST_SYNC_TIMESTAMP_KEY]: timestamp
-  });
+  };
+
+  if (revision !== null && revision !== undefined) {
+    payload[LAST_SYNC_REVISION_KEY] = toRevision(revision);
+  }
+
+  await chrome.storage.local.set(payload);
 }
 
 async function buildDashboardState() {
@@ -161,9 +214,9 @@ async function buildDashboardState() {
     getVideoCount(),
     getAllowlist(),
     getRecentActivity(),
-    getDailyStats(7),
+    getDailyStats(DASHBOARD_STATS_WINDOW_DAYS),
     getCurrentSiteInfo(),
-    chrome.storage.local.get([LAST_PROTECTED_AT_KEY, LAST_SYNC_TIMESTAMP_KEY, LAST_SYNC_STATE_KEY])
+    chrome.storage.local.get([LAST_PROTECTED_AT_KEY, LAST_SYNC_TIMESTAMP_KEY, LAST_SYNC_STATE_KEY, LAST_SYNC_REVISION_KEY])
   ]);
 
   return {
@@ -176,19 +229,21 @@ async function buildDashboardState() {
     lastProtectedAt: toUnixSeconds(storage[LAST_PROTECTED_AT_KEY]),
     lastSyncTimestamp: toUnixSeconds(storage[LAST_SYNC_TIMESTAMP_KEY]),
     lastSyncState: storage[LAST_SYNC_STATE_KEY] ?? SYNC_STATES.unavailable,
+    lastSyncRevision: toRevision(storage[LAST_SYNC_REVISION_KEY]),
     currentSite,
-    todayCount: Object.values(dailyCounts)[0] ?? 0,
+    todayCount: dailyCounts[todayKey().slice(DAILY_COUNT_PREFIX.length)] ?? 0,
     weekCount: Object.values(dailyCounts).reduce((sum, value) => sum + value, 0)
   };
 }
 
 async function pushDashboardStateToNative(state) {
+  const snapshot = state ?? await buildDashboardState();
+
   if (!isNativeMessagingAvailable()) {
-    await updateLocalSyncState(SYNC_STATES.unavailable);
+    await updateLocalSyncState(SYNC_STATES.unavailable, nowIso(), snapshot.lastSyncRevision);
     return false;
   }
 
-  const snapshot = state ?? await buildDashboardState();
   try {
     await browser.runtime.sendNativeMessage('com.freeyt.app.extension', {
       action: 'syncDashboardState',
@@ -199,13 +254,14 @@ async function pushDashboardStateToNative(state) {
       exceptions: snapshot.exceptions,
       lastProtectedAt: snapshot.lastProtectedAt,
       lastSyncTimestamp: snapshot.lastSyncTimestamp,
+      lastSyncRevision: snapshot.lastSyncRevision,
       lastSyncState: SYNC_STATES.synced
     });
-    await updateLocalSyncState(SYNC_STATES.synced);
+    await updateLocalSyncState(SYNC_STATES.synced, nowIso(), snapshot.lastSyncRevision);
     return true;
   } catch (error) {
     console.log('[FreeYT] Native sync skipped:', error?.message || 'unavailable');
-    await updateLocalSyncState(SYNC_STATES.unavailable);
+    await updateLocalSyncState(SYNC_STATES.unavailable, nowIso(), snapshot.lastSyncRevision);
     return false;
   }
 }
@@ -271,13 +327,15 @@ async function updateAllowlistRules(allowlist) {
 }
 
 async function setAllowlist(nextAllowlist, syncState = SYNC_STATES.synced) {
-  const normalized = Array.from(new Set(nextAllowlist.map(normalizeDomain))).filter(Boolean).sort();
+  const normalized = normalizeExceptions(nextAllowlist);
   const timestamp = nowIso();
+  const revision = (await getSyncRevision()) + 1;
 
   await chrome.storage.local.set({
     [ALLOWLIST_KEY]: normalized,
     [LAST_SYNC_TIMESTAMP_KEY]: timestamp,
-    [LAST_SYNC_STATE_KEY]: syncState
+    [LAST_SYNC_STATE_KEY]: syncState,
+    [LAST_SYNC_REVISION_KEY]: revision
   });
 
   await updateAllowlistRules(normalized);
@@ -308,12 +366,13 @@ async function toggleCurrentSiteException() {
 }
 
 async function applyNativeSnapshot(snapshot) {
-  const exceptions = Array.isArray(snapshot.exceptions) ? snapshot.exceptions.map(normalizeDomain).filter(Boolean) : [];
+  const exceptions = Array.isArray(snapshot.exceptions) ? normalizeExceptions(snapshot.exceptions) : [];
   const recentActivity = Array.isArray(snapshot.recentActivity) ? snapshot.recentActivity.slice(0, MAX_RECENT_ACTIVITY) : [];
   const enabled = snapshot.enabled ?? true;
   const videoCount = snapshot.videoCount ?? 0;
   const syncTimestampIso = toIsoString(snapshot.lastSyncTimestamp) ?? nowIso();
   const syncState = snapshot.lastSyncState || SYNC_STATES.synced;
+  const syncRevision = toRevision(snapshot.lastSyncRevision);
   const dailyCounts = snapshot.dailyCounts && typeof snapshot.dailyCounts === 'object' ? snapshot.dailyCounts : {};
 
   const existing = await chrome.storage.local.get(null);
@@ -334,6 +393,7 @@ async function applyNativeSnapshot(snapshot) {
     [LAST_PROTECTED_AT_KEY]: toIsoString(snapshot.lastProtectedAt),
     [LAST_SYNC_TIMESTAMP_KEY]: syncTimestampIso,
     [LAST_SYNC_STATE_KEY]: syncState,
+    [LAST_SYNC_REVISION_KEY]: syncRevision,
     ...dailyPayload
   });
 
@@ -353,25 +413,33 @@ async function syncWithNativeApp() {
     });
 
     const localSnapshot = await buildDashboardState();
+    const localRevision = toRevision(localSnapshot.lastSyncRevision);
+    const nativeRevision = toRevision(nativeSnapshot.lastSyncRevision);
     const localTimestamp = (localSnapshot.lastSyncTimestamp ?? 0) * 1000;
     const nativeTimestamp = (nativeSnapshot.lastSyncTimestamp ?? 0) * 1000;
 
-    if (nativeTimestamp > localTimestamp) {
+    if (nativeRevision > localRevision) {
       await applyNativeSnapshot(nativeSnapshot);
       await pushDashboardStateToNative(await buildDashboardState());
-      return buildDashboardState();
+      return await buildDashboardState();
     }
 
-    if (localTimestamp > nativeTimestamp) {
+    if (localRevision > nativeRevision) {
+      await pushDashboardStateToNative(localSnapshot);
+    } else if (nativeTimestamp > localTimestamp) {
+      await applyNativeSnapshot(nativeSnapshot);
+      await pushDashboardStateToNative(await buildDashboardState());
+      return await buildDashboardState();
+    } else if (localTimestamp > nativeTimestamp) {
       await pushDashboardStateToNative(localSnapshot);
     } else {
-      await updateLocalSyncState(SYNC_STATES.synced);
+      await updateLocalSyncState(SYNC_STATES.synced, nowIso(), localRevision);
     }
 
     return localSnapshot;
   } catch (error) {
     console.log('[FreeYT] Native sync skipped:', error?.message || 'unavailable');
-    await updateLocalSyncState(SYNC_STATES.unavailable);
+    await updateLocalSyncState(SYNC_STATES.unavailable, nowIso(), await getSyncRevision());
     return null;
   }
 }
@@ -387,6 +455,7 @@ async function recordRedirect(rawURL) {
   ]);
 
   const activity = createActivity(rawURL, now);
+  const revision = (await getSyncRevision()) + 1;
   const nextRecentActivity = [
     activity,
     ...recentActivity.filter((item) => item.id !== activity.id)
@@ -398,6 +467,7 @@ async function recordRedirect(rawURL) {
     [LAST_PROTECTED_AT_KEY]: timestamp,
     [LAST_SYNC_TIMESTAMP_KEY]: timestamp,
     [LAST_SYNC_STATE_KEY]: SYNC_STATES.synced,
+    [LAST_SYNC_REVISION_KEY]: revision,
     [dayKey]: (existingDayCount[dayKey] ?? 0) + 1
   });
 
@@ -413,7 +483,8 @@ async function initializeState() {
       [VIDEO_COUNT_KEY]: 0,
       [ALLOWLIST_KEY]: [],
       [LAST_SYNC_STATE_KEY]: SYNC_STATES.pending,
-      [LAST_SYNC_TIMESTAMP_KEY]: nowIso()
+      [LAST_SYNC_TIMESTAMP_KEY]: nowIso(),
+      [LAST_SYNC_REVISION_KEY]: 0
     });
     await enableRedirects();
   }
@@ -427,7 +498,7 @@ async function initializeState() {
 async function cleanupOldDailyStats() {
   const allKeys = await chrome.storage.local.get(null);
   const cutoff = new Date();
-  cutoff.setDate(cutoff.getDate() - 90);
+  cutoff.setDate(cutoff.getDate() - DAILY_STATS_RETENTION_DAYS);
   const cutoffString = cutoff.toISOString().slice(0, 10);
   const oldKeys = Object.keys(allKeys).filter(
     (key) => key.startsWith(DAILY_COUNT_PREFIX) && key.slice(DAILY_COUNT_PREFIX.length) < cutoffString
@@ -484,7 +555,8 @@ chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
         await chrome.storage.local.set({
           [STORAGE_KEY]: enabled,
           [LAST_SYNC_TIMESTAMP_KEY]: nowIso(),
-          [LAST_SYNC_STATE_KEY]: SYNC_STATES.synced
+          [LAST_SYNC_STATE_KEY]: SYNC_STATES.synced,
+          [LAST_SYNC_REVISION_KEY]: (await getSyncRevision()) + 1
         });
         await syncRulesToStorage();
         await pushDashboardStateToNative(await buildDashboardState());
@@ -499,16 +571,28 @@ chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
       }
 
       case 'addToAllowlist': {
+        const candidate = validateExceptionDomain(request.pattern);
+        if (!candidate.domain) {
+          sendResponse({ success: false, error: candidate.error });
+          return;
+        }
+
         const allowlist = await getAllowlist();
-        const next = [...allowlist, request.pattern];
+        const next = [...allowlist, candidate.domain];
         const exceptions = await setAllowlist(next);
         sendResponse({ success: true, allowlist: exceptions, exceptions });
         return;
       }
 
       case 'removeFromAllowlist': {
+        const candidate = validateExceptionDomain(request.pattern);
+        if (!candidate.domain) {
+          sendResponse({ success: false, error: candidate.error });
+          return;
+        }
+
         const allowlist = await getAllowlist();
-        const next = allowlist.filter((domain) => domain !== request.pattern);
+        const next = allowlist.filter((domain) => domain !== candidate.domain);
         const exceptions = await setAllowlist(next);
         sendResponse({ success: true, allowlist: exceptions, exceptions });
         return;
@@ -539,7 +623,7 @@ chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
         try {
           const response = await browser.runtime.sendNativeMessage('com.freeyt.app.extension', {
             action: 'openDashboard',
-            section: request.section || 'dashboard'
+            section: request.section || 'overview'
           });
           sendResponse(response);
         } catch (error) {

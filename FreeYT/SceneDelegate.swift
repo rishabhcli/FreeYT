@@ -10,14 +10,15 @@ import SwiftUI
 
 class SceneDelegate: UIResponder, UIWindowSceneDelegate {
     var window: UIWindow?
-    private let store = DashboardStore.shared
+    private let stateService: any DashboardStateServing = SharedDashboardStateService()
+    private lazy var store = DashboardStore(stateService: stateService)
 
     func scene(_ scene: UIScene, willConnectTo session: UISceneSession, options connectionOptions: UIScene.ConnectionOptions) {
         guard let windowScene = (scene as? UIWindowScene) else { return }
         let window = UIWindow(windowScene: windowScene)
         configureLaunchOverrides()
 
-        if UserDefaults.standard.bool(forKey: "onboardingCompleted") {
+        if AppPreferences.isOnboardingCompleted() {
             window.rootViewController = LiquidGlassHostingController(store: store)
         } else {
             let onboardingView = OnboardingView { [self] in
@@ -50,8 +51,8 @@ class SceneDelegate: UIResponder, UIWindowSceneDelegate {
 
     private func handle(url: URL) {
         store.handleDeepLink(url)
-        if UserDefaults.standard.bool(forKey: "onboardingCompleted") == false {
-            UserDefaults.standard.set(true, forKey: "onboardingCompleted")
+        if AppPreferences.isOnboardingCompleted() == false {
+            AppPreferences.setOnboardingCompleted(true)
             window?.rootViewController = LiquidGlassHostingController(store: store)
         }
     }
@@ -60,7 +61,7 @@ class SceneDelegate: UIResponder, UIWindowSceneDelegate {
         let arguments = ProcessInfo.processInfo.arguments
 
         if launchFlagValue(named: "-uiTestingResetState", in: arguments) == true {
-            SharedState.resetDashboardState()
+            stateService.resetDashboardState()
         }
 
         if launchFlagValue(named: "-uiTestingSeedDashboard", in: arguments) == true {
@@ -68,12 +69,11 @@ class SceneDelegate: UIResponder, UIWindowSceneDelegate {
         }
 
         if let onboardingCompleted = launchFlagValue(named: "-onboardingCompleted", in: arguments) {
-            UserDefaults.standard.set(onboardingCompleted, forKey: "onboardingCompleted")
+            AppPreferences.setOnboardingCompleted(onboardingCompleted)
         }
 
-        if let rawSection = launchArgument(named: "-dashboardSection", in: arguments),
-           let section = SidebarSection(rawValue: rawSection.lowercased()) {
-            store.selectedSection = section
+        if let rawSection = launchArgument(named: "-dashboardSection", in: arguments) {
+            store.selectedSection = DashboardRoute(rawRouteValue: rawSection).section
         }
 
         store.refresh()
@@ -117,7 +117,7 @@ class SceneDelegate: UIResponder, UIWindowSceneDelegate {
             RedirectActivity(host: "youtube.com", kind: .shorts, timestamp: now.addingTimeInterval(-7_200))
         ]
 
-        SharedState.mirrorExtensionSnapshot(
+        stateService.mirrorExtensionSnapshot(
             enabled: true,
             videoCount: dailyCounts.values.reduce(0, +),
             dailyCounts: dailyCounts,
@@ -125,7 +125,8 @@ class SceneDelegate: UIResponder, UIWindowSceneDelegate {
             exceptions: ["music.youtube.com", "studio.youtube.com"],
             lastProtectedAt: recentActivity.first?.timestamp,
             lastSyncState: .synced,
-            lastSyncTimestamp: now
+            lastSyncTimestamp: now,
+            lastSyncRevision: 1
         )
     }
 }

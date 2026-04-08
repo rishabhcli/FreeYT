@@ -6,7 +6,6 @@
 //
 
 import SwiftUI
-import UIKit
 
 struct LiquidGlassView: View {
     @ObservedObject var store: DashboardStore
@@ -50,12 +49,6 @@ struct LiquidGlassView: View {
                 store.refresh()
             }
         }
-        .onReceive(NotificationCenter.default.publisher(for: UIApplication.willEnterForegroundNotification)) { _ in
-            store.refresh()
-        }
-        .onReceive(NotificationCenter.default.publisher(for: UserDefaults.didChangeNotification)) { _ in
-            store.refresh()
-        }
     }
 
     @ViewBuilder
@@ -81,7 +74,7 @@ struct LiquidGlassView: View {
 
         case .trust:
             SupportPanel(snapshot: store.snapshot, onRefresh: store.refresh, openSettings: store.openSafariSettings)
-            DiagnosticsPanel(snapshot: store.snapshot)
+            DiagnosticsPanel(snapshot: store.snapshot, appGroupConnected: store.isAppGroupAvailable)
 
         case .setup:
             StepsPanel(snapshot: store.snapshot, openSettings: store.openSafariSettings)
@@ -129,6 +122,6 @@ struct LiquidGlassView: View {
 
 struct LiquidGlassView_Previews: PreviewProvider {
     static var previews: some View {
-        LiquidGlassView(store: .shared)
+        LiquidGlassView(store: DashboardStore())
     }
 }

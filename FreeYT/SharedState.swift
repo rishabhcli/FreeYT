@@ -11,6 +11,10 @@ import Foundation
 import WidgetKit
 #endif
 
+extension Notification.Name {
+    static let sharedDashboardStateDidChange = Notification.Name("SharedState.dashboardStateDidChange")
+}
+
 enum SyncHealth: String, Codable, CaseIterable {
     case synced = "Synced"
     case pending = "Pending Safari sync"
@@ -100,6 +104,29 @@ struct DashboardSnapshot: Equatable {
     let exceptions: [String]
     let lastSyncState: SyncHealth
     let lastSyncTimestamp: Date?
+    let lastSyncRevision: Int
+
+    init(
+        enabled: Bool,
+        videoCount: Int,
+        dailyCounts: [String: Int],
+        lastProtectedAt: Date?,
+        recentActivity: [RedirectActivity],
+        exceptions: [String],
+        lastSyncState: SyncHealth,
+        lastSyncTimestamp: Date?,
+        lastSyncRevision: Int = 0
+    ) {
+        self.enabled = enabled
+        self.videoCount = videoCount
+        self.dailyCounts = dailyCounts
+        self.lastProtectedAt = lastProtectedAt
+        self.recentActivity = recentActivity
+        self.exceptions = exceptions
+        self.lastSyncState = lastSyncState
+        self.lastSyncTimestamp = lastSyncTimestamp
+        self.lastSyncRevision = lastSyncRevision
+    }
 
     var todayCount: Int {
         dailyCounts[DashboardSnapshot.dateKey(for: Date())] ?? 0
@@ -152,6 +179,7 @@ struct SharedState {
     private static let videoCountKey = "videoWatchCount"
     private static let lastSyncKey = "lastSyncTimestamp"
     private static let lastSyncStateKey = "lastSyncState"
+    private static let lastSyncRevisionKey = "lastSyncRevision"
     private static let lastProtectedAtKey = "lastProtectedAt"
     private static let recentActivityKey = "recentActivity"
     private static let exceptionsKey = "exceptionDomains"
@@ -171,7 +199,7 @@ struct SharedState {
             return defaults.bool(forKey: enabledKey)
         }
         set {
-            setDashboardState(enabled: newValue)
+            setDashboardState(enabled: newValue, bumpSyncRevision: true)
         }
     }
 
@@ -180,7 +208,7 @@ struct SharedState {
             defaults?.integer(forKey: videoCountKey) ?? 0
         }
         set {
-            setDashboardState(videoCount: newValue)
+            setDashboardState(videoCount: newValue, bumpSyncRevision: true)
         }
     }
 
@@ -189,7 +217,7 @@ struct SharedState {
             defaults?.object(forKey: lastProtectedAtKey) as? Date
         }
         set {
-            setDashboardState(lastProtectedAt: newValue, updateLastProtectedAt: true)
+            setDashboardState(lastProtectedAt: newValue, updateLastProtectedAt: true, bumpSyncRevision: true)
         }
     }
 
@@ -199,6 +227,7 @@ struct SharedState {
         }
         set {
             defaults?.set(newValue, forKey: lastSyncKey)
+            persistChange()
         }
     }
 
@@ -215,13 +244,24 @@ struct SharedState {
         }
     }
 
+    static var lastSyncRevision: Int {
+        get {
+            guard let defaults else { return 0 }
+            return max(defaults.integer(forKey: lastSyncRevisionKey), 0)
+        }
+        set {
+            defaults?.set(max(newValue, 0), forKey: lastSyncRevisionKey)
+            persistChange()
+        }
+    }
+
     static var exceptionDomains: [String] {
         get {
             decode([String].self, forKey: exceptionsKey, defaultValue: [])
         }
         set {
             let normalized = Array(Set(newValue.map { normalize(domain: $0) })).sorted()
-            setDashboardState(exceptions: normalized)
+            setDashboardState(exceptions: normalized, bumpSyncRevision: true)
         }
     }
 
@@ -231,7 +271,7 @@ struct SharedState {
         }
         set {
             let trimmed = Array(newValue.sorted(by: { $0.timestamp > $1.timestamp }).prefix(12))
-            setDashboardState(recentActivity: trimmed)
+            setDashboardState(recentActivity: trimmed, bumpSyncRevision: true)
         }
     }
 
@@ -244,7 +284,8 @@ struct SharedState {
             recentActivity: recentActivity,
             exceptions: exceptionDomains,
             lastSyncState: lastSyncState,
-            lastSyncTimestamp: lastSyncTimestamp
+            lastSyncTimestamp: lastSyncTimestamp,
+            lastSyncRevision: lastSyncRevision
         )
     }
 
@@ -262,7 +303,9 @@ struct SharedState {
             lastProtectedAt: now,
             updateLastProtectedAt: true,
             lastSyncState: .synced,
-            lastSyncTimestamp: now
+            lastSyncTimestamp: now,
+            updateLastSyncTimestamp: true,
+            bumpSyncRevision: true
         )
     }
 
@@ -294,6 +337,7 @@ struct SharedState {
         defaults.removeObject(forKey: videoCountKey)
         defaults.removeObject(forKey: lastSyncKey)
         defaults.removeObject(forKey: lastSyncStateKey)
+        defaults.removeObject(forKey: lastSyncRevisionKey)
         defaults.removeObject(forKey: lastProtectedAtKey)
         defaults.removeObject(forKey: recentActivityKey)
         defaults.removeObject(forKey: exceptionsKey)
@@ -302,7 +346,7 @@ struct SharedState {
             defaults.removeObject(forKey: key)
         }
 
-        reloadWidgets()
+        persistChange()
     }
 
     static func setDashboardState(
@@ -314,7 +358,10 @@ struct SharedState {
         lastProtectedAt: Date? = nil,
         updateLastProtectedAt: Bool = false,
         lastSyncState: SyncHealth? = nil,
-        lastSyncTimestamp: Date? = nil
+        lastSyncTimestamp: Date? = nil,
+        updateLastSyncTimestamp: Bool = false,
+        lastSyncRevision: Int? = nil,
+        bumpSyncRevision: Bool = false
     ) {
         guard let defaults else { return }
 
@@ -346,8 +393,17 @@ struct SharedState {
             defaults.set(lastSyncState.rawValue, forKey: lastSyncStateKey)
         }
 
-        defaults.set(lastSyncTimestamp ?? Date(), forKey: lastSyncKey)
-        reloadWidgets()
+        if updateLastSyncTimestamp {
+            defaults.set(lastSyncTimestamp, forKey: lastSyncKey)
+        }
+
+        if let lastSyncRevision {
+            defaults.set(max(lastSyncRevision, 0), forKey: lastSyncRevisionKey)
+        } else if bumpSyncRevision {
+            defaults.set(lastSyncRevisionValue(defaults) + 1, forKey: lastSyncRevisionKey)
+        }
+
+        persistChange()
     }
 
     static func mirrorExtensionSnapshot(
@@ -358,7 +414,8 @@ struct SharedState {
         exceptions: [String],
         lastProtectedAt: Date?,
         lastSyncState: SyncHealth,
-        lastSyncTimestamp: Date? = nil
+        lastSyncTimestamp: Date? = nil,
+        lastSyncRevision: Int? = nil
     ) {
         setDashboardState(
             enabled: enabled,
@@ -369,7 +426,9 @@ struct SharedState {
             lastProtectedAt: lastProtectedAt,
             updateLastProtectedAt: true,
             lastSyncState: lastSyncState,
-            lastSyncTimestamp: lastSyncTimestamp
+            lastSyncTimestamp: lastSyncTimestamp,
+            updateLastSyncTimestamp: true,
+            lastSyncRevision: lastSyncRevision
         )
     }
 
@@ -389,7 +448,8 @@ struct SharedState {
             "exceptions": snapshot.exceptions,
             "recentActivityCount": snapshot.recentActivity.count,
             "lastSyncState": snapshot.lastSyncState.rawValue,
-            "lastSyncTimestamp": snapshot.lastSyncTimestamp?.description ?? "nil"
+            "lastSyncTimestamp": snapshot.lastSyncTimestamp?.description ?? "nil",
+            "lastSyncRevision": snapshot.lastSyncRevision
         ]
     }
 
@@ -427,9 +487,18 @@ struct SharedState {
         defaults.set(data, forKey: key)
     }
 
+    private static func lastSyncRevisionValue(_ defaults: UserDefaults) -> Int {
+        max(defaults.integer(forKey: lastSyncRevisionKey), 0)
+    }
+
     private static func reloadWidgets() {
         #if canImport(WidgetKit)
         WidgetCenter.shared.reloadAllTimelines()
         #endif
+    }
+
+    private static func persistChange() {
+        reloadWidgets()
+        NotificationCenter.default.post(name: .sharedDashboardStateDidChange, object: nil)
     }
 }

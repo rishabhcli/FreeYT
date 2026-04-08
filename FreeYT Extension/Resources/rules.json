@@ -9,7 +9,7 @@
       }
     },
     "condition": {
-      "regexFilter": "^https?://(?:www\\.|m\\.)?youtube\\.com/watch\\?(?:[^#]*&)?v=([a-zA-Z0-9_-]+)",
+      "regexFilter": "^https?://(?:www\\.)?youtube\\.com/watch\\?(?:[^#]*&)?v=([a-zA-Z0-9_-]+)",
       "resourceTypes": ["main_frame"]
     }
   },

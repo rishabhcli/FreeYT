@@ -1,14 +1,14 @@
 # FreeYT
 
-FreeYT is a Safari Web Extension for iPhone, iPad, and Mac that routes supported YouTube links through `youtube-nocookie.com` and surfaces a local-first privacy dashboard in the companion app.
+FreeYT is a Safari Web Extension for iPhone, iPad, and Mac that routes supported YouTube links through `youtube-nocookie.com` and keeps a local-first privacy dashboard in the companion app.
 
-## What ships now
+## What ships
 
-- A native SwiftUI dashboard with `Overview`, `Activity`, `Exceptions`, `Trust`, and `Setup` sections
-- Guided onboarding that walks users through enabling the Safari extension and verifying protection
-- A compact Safari popup with one primary control, quick stats, current-site bypass, and exception management
-- A background service worker that maintains a shared dashboard snapshot and syncs it with the host app
-- A lightweight banner content script on `youtube-nocookie.com` pages that explains the privacy-enhanced route
+- A native SwiftUI dashboard with `Overview`, `Activity`, `Exceptions`, `Trust`, and `Setup`
+- Guided onboarding that helps users enable the extension and verify protection
+- A compact Safari popup with primary protection control, quick stats, current-site exception support, and exception management
+- A background service worker that owns extension state, redirect rules, recent activity, and native sync
+- A small content script banner on `youtube-nocookie.com` pages that explains the privacy-enhanced route
 - Seven declarative redirect rules covering watch, shorts, embed, live, mobile watch, short links, and legacy `/v/` URLs
 
 ## Product model
@@ -19,9 +19,9 @@ FreeYT stays local-first:
 - No analytics
 - No remote dashboard backend
 - No cross-site tracking
-- All state is stored on-device through the app group shared container
+- State stays on-device in the shared app-group container and Safari extension storage
 
-The dashboard snapshot currently includes:
+The shared dashboard snapshot includes:
 
 - `enabled`
 - `videoCount`
@@ -36,26 +36,22 @@ The dashboard snapshot currently includes:
 
 ### Host app
 
-The host app lives in [`/Users/rishabhbansal/Documents/GitHub/FreeYT/FreeYT`](/Users/rishabhbansal/Documents/GitHub/FreeYT/FreeYT) and now centers on a shared dashboard model rather than a status shell.
-
-- [`LiquidGlassView.swift`](/Users/rishabhbansal/Documents/GitHub/FreeYT/FreeYT/LiquidGlassView.swift) renders the dashboard IA
-- [`DashboardStore.swift`](/Users/rishabhbansal/Documents/GitHub/FreeYT/FreeYT/Models/DashboardStore.swift) coordinates app-side state, navigation, and actions
-- [`SharedState.swift`](/Users/rishabhbansal/Documents/GitHub/FreeYT/FreeYT/SharedState.swift) owns the shared dashboard snapshot in the app group container
-- [`OnboardingView.swift`](/Users/rishabhbansal/Documents/GitHub/FreeYT/FreeYT/Views/Onboarding/OnboardingView.swift) drives the guided setup flow
+- [`FreeYT/SharedState.swift`](FreeYT/SharedState.swift) stores the shared dashboard snapshot in the `group.com.freeyt.app` app group
+- [`FreeYT/Models/DashboardStore.swift`](FreeYT/Models/DashboardStore.swift) coordinates app-side state, navigation, and actions
+- [`FreeYT/LiquidGlassView.swift`](FreeYT/LiquidGlassView.swift) renders the dashboard shell
+- [`FreeYT/Views/Onboarding/OnboardingView.swift`](FreeYT/Views/Onboarding/OnboardingView.swift) drives setup
 
 ### Safari extension
 
-The extension lives in [`/Users/rishabhbansal/Documents/GitHub/FreeYT/FreeYT Extension`](/Users/rishabhbansal/Documents/GitHub/FreeYT/FreeYT%20Extension).
-
-- [`manifest.json`](/Users/rishabhbansal/Documents/GitHub/FreeYT/FreeYT%20Extension/Resources/manifest.json) defines the MV3 extension, popup, background worker, content script, and permissions
-- [`background.js`](/Users/rishabhbansal/Documents/GitHub/FreeYT/FreeYT%20Extension/Resources/background.js) manages redirect state, exceptions, recent activity, and native sync
-- [`popup.html`](/Users/rishabhbansal/Documents/GitHub/FreeYT/FreeYT%20Extension/Resources/popup.html), [`popup.css`](/Users/rishabhbansal/Documents/GitHub/FreeYT/FreeYT%20Extension/Resources/popup.css), and [`popup.js`](/Users/rishabhbansal/Documents/GitHub/FreeYT/FreeYT%20Extension/Resources/popup.js) implement the compact control surface
-- [`banner.js`](/Users/rishabhbansal/Documents/GitHub/FreeYT/FreeYT%20Extension/Resources/banner.js) shows an in-page notice on privacy-enhanced embed pages
-- [`SafariWebExtensionHandler.swift`](/Users/rishabhbansal/Documents/GitHub/FreeYT/FreeYT%20Extension/SafariWebExtensionHandler.swift) handles native message sync and app deep links
+- [`FreeYT Extension/Resources/manifest.json`](FreeYT%20Extension/Resources/manifest.json) defines the MV3 extension, popup, background worker, content script, and permissions
+- [`FreeYT Extension/Resources/background.js`](FreeYT%20Extension/Resources/background.js) manages redirect state, exceptions, recent activity, and native sync
+- [`FreeYT Extension/Resources/popup.html`](FreeYT%20Extension/Resources/popup.html), [`popup.css`](FreeYT%20Extension/Resources/popup.css), and [`popup.js`](FreeYT%20Extension/Resources/popup.js) implement the popup
+- [`FreeYT Extension/Resources/banner.js`](FreeYT%20Extension/Resources/banner.js) shows the explanatory banner on `youtube-nocookie.com`
+- [`FreeYT Extension/SafariWebExtensionHandler.swift`](FreeYT%20Extension/SafariWebExtensionHandler.swift) handles native messaging and app deep links
 
 ## Redirect coverage
 
-[`rules.json`](/Users/rishabhbansal/Documents/GitHub/FreeYT/FreeYT%20Extension/Resources/rules.json) currently ships 7 `main_frame` redirect rules:
+[`FreeYT Extension/Resources/rules.json`](FreeYT%20Extension/Resources/rules.json) currently ships 7 `main_frame` redirect rules:
 
 1. `youtube.com/watch?v=...`
 2. `youtube.com/shorts/...`
@@ -69,7 +65,7 @@ All supported routes redirect to `https://www.youtube-nocookie.com/embed/<video-
 
 ## Bundle identifiers and shared container
 
-The project is now aligned around:
+The project is aligned around:
 
 - App: `com.freeyt.app`
 - Extension: `com.freeyt.app.extension`
@@ -90,8 +86,6 @@ xcodebuild -project FreeYT.xcodeproj -scheme FreeYT \
 
 ## Test
 
-Swift tests:
-
 ```bash
 xcodebuild test -project FreeYT.xcodeproj -scheme FreeYT \
   -destination 'platform=iOS Simulator,name=iPhone 17'
@@ -108,10 +102,10 @@ npm test
 
 1. Build and run the app.
 2. Enable the FreeYT extension in Safari.
-3. Complete the guided setup flow in the host app.
+3. Complete the onboarding flow in the host app.
 4. Open a supported YouTube URL and confirm it lands on `youtube-nocookie.com`.
 5. Open the Safari popup and verify:
-   - protection can be paused/resumed
+   - protection can be paused and resumed
    - `Today`, `This Week`, and `All Time` counts update
    - `Bypass this site` adds and removes a trusted exception
 6. Open the host app and verify recent activity, exceptions, trust copy, and setup checklist.
